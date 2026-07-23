@@ -17,6 +17,7 @@ import { useEditor } from '@/contexts/EditorContext';
 import { TableCard } from '@/components/TableCard';
 import { EmptyState } from '@/components/EmptyState';
 import { FAB } from '@/components/FAB';
+import { InputModal } from '@/components/InputModal';
 import { getTables, executeQuery, TableInfo } from '@/utils/sqliteManager';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -41,6 +42,7 @@ export default function DatabaseDetailScreen() {
   const [allItems, setAllItems] = useState<TableInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showCreateTable, setShowCreateTable] = useState(false);
 
   const db = id ? getDb(id) : undefined;
 
@@ -75,31 +77,19 @@ export default function DatabaseDetailScreen() {
     router.push('/(tabs)/editor');
   };
 
-  const handleCreateTable = () => {
-    Alert.prompt(
-      'New Table',
-      'Enter a name for the new table:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create',
-          onPress: async (tableName: string | undefined) => {
-            if (!tableName?.trim() || !id) return;
-            const sql = `CREATE TABLE IF NOT EXISTS "${tableName.trim()}" (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name TEXT NOT NULL,\n  created_at TEXT DEFAULT (datetime('now'))\n);`;
-            const result = await executeQuery(id, sql);
-            if (result.error) {
-              Alert.alert('Error', result.error);
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              loadItems();
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+  const handleCreateTable = () => setShowCreateTable(true);
+
+  const handleCreateTableConfirm = async (tableName: string) => {
+    setShowCreateTable(false);
+    if (!tableName.trim() || !id) return;
+    const sql = `CREATE TABLE IF NOT EXISTS "${tableName.trim()}" (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name TEXT NOT NULL,\n  created_at TEXT DEFAULT (datetime('now'))\n);`;
+    const result = await executeQuery(id, sql);
+    if (result.error) {
+      Alert.alert('Error', result.error);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadItems();
+    }
   };
 
   const handleItemLongPress = (item: TableInfo) => {
@@ -280,6 +270,16 @@ export default function DatabaseDetailScreen() {
       {activeTab === 'tables' && !isLoading && (
         <FAB icon="add" onPress={handleCreateTable} />
       )}
+
+      <InputModal
+        visible={showCreateTable}
+        title="New Table"
+        message="A default schema will be created. You can alter it from the SQL editor."
+        placeholder="e.g. users, products, orders"
+        confirmLabel="Create"
+        onConfirm={handleCreateTableConfirm}
+        onCancel={() => setShowCreateTable(false)}
+      />
     </View>
   );
 }

@@ -15,6 +15,7 @@ import { useDatabases } from '@/contexts/DatabaseContext';
 import { DatabaseCard } from '@/components/DatabaseCard';
 import { EmptyState } from '@/components/EmptyState';
 import { FAB } from '@/components/FAB';
+import { InputModal } from '@/components/InputModal';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getTables, getDatabaseStats } from '@/utils/sqliteManager';
@@ -24,12 +25,16 @@ interface DBStats {
   [id: string]: { tableCount: number; size: number };
 }
 
+type ModalMode = 'create' | 'rename' | null;
+
 export default function DatabasesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { databases, createDatabase, deleteDatabase, updateDatabase } = useDatabases();
   const [search, setSearch] = useState('');
   const [dbStats, setDbStats] = useState<DBStats>({});
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [renameTarget, setRenameTarget] = useState<typeof databases[0] | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -54,29 +59,28 @@ export default function DatabasesScreen() {
   };
 
   const handleCreate = () => {
-    Alert.prompt(
-      'New Database',
-      'Enter a name for your database:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create',
-          onPress: async (name: string | undefined) => {
-            if (!name?.trim()) return;
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            try {
-              const db = await createDatabase(name.trim());
-              router.push(`/database/${db.id}`);
-            } catch (e) {
-              Alert.alert('Error', 'Could not create database.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+    setRenameTarget(null);
+    setModalMode('create');
+  };
+
+  const handleModalConfirm = async (name: string) => {
+    setModalMode(null);
+    if (modalMode === 'create') {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const db = await createDatabase(name);
+        router.push(`/database/${db.id}`);
+      } catch {
+        Alert.alert('Error', 'Could not create database.');
+      }
+    } else if (modalMode === 'rename' && renameTarget) {
+      try {
+        await updateDatabase(renameTarget.id, { name });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        Alert.alert('Error', 'Could not rename database.');
+      }
+    }
   };
 
   const handleLongPress = (db: typeof databases[0]) => {
@@ -87,7 +91,10 @@ export default function DatabasesScreen() {
       },
       {
         text: 'Rename',
-        onPress: () => handleRename(db),
+        onPress: () => {
+          setRenameTarget(db);
+          setModalMode('rename');
+        },
       },
       {
         text: 'Delete',
@@ -96,30 +103,6 @@ export default function DatabasesScreen() {
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  };
-
-  const handleRename = (db: typeof databases[0]) => {
-    Alert.prompt(
-      'Rename Database',
-      'Enter new name:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Rename',
-          onPress: async (name: string | undefined) => {
-            if (!name?.trim()) return;
-            try {
-              await updateDatabase(db.id, { name: name.trim() });
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch {
-              Alert.alert('Error', 'Could not rename database.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      db.name
-    );
   };
 
   const handleDelete = (db: typeof databases[0]) => {
@@ -221,6 +204,26 @@ export default function DatabasesScreen() {
       {databases.length > 0 && (
         <FAB icon="add" onPress={handleCreate} />
       )}
+
+      {/* Cross-platform Input Modal */}
+      <InputModal
+        visible={modalMode === 'create'}
+        title="New Database"
+        message="Enter a name for your database."
+        placeholder="e.g. MyApp, products, logs"
+        confirmLabel="Create"
+        onConfirm={handleModalConfirm}
+        onCancel={() => setModalMode(null)}
+      />
+      <InputModal
+        visible={modalMode === 'rename'}
+        title="Rename Database"
+        placeholder="New name"
+        defaultValue={renameTarget?.name ?? ''}
+        confirmLabel="Rename"
+        onConfirm={handleModalConfirm}
+        onCancel={() => setModalMode(null)}
+      />
     </View>
   );
 }
