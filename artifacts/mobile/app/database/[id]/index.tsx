@@ -40,17 +40,20 @@ export default function DatabaseDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('tables');
   const [allItems, setAllItems] = useState<TableInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const db = id ? getDb(id) : undefined;
 
   const loadItems = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
+    setLoadError(null);
     try {
       const items = await getTables(id);
       setAllItems(items);
     } catch (e) {
       console.error('[DB Detail] Failed to load tables:', e);
+      setLoadError((e as Error).message ?? 'Failed to load database objects.');
     } finally {
       setIsLoading(false);
     }
@@ -186,6 +189,19 @@ export default function DatabaseDetailScreen() {
         </View>
       )}
 
+      {/* Error state */}
+      {loadError && (
+        <View style={[styles.errorBar, { backgroundColor: colors.destructive + '1A', borderColor: colors.destructive + '44' }]}>
+          <MaterialIcons name="error-outline" size={16} color={colors.destructive} />
+          <Text style={[styles.errorText, { color: colors.destructive }]} numberOfLines={2}>
+            {loadError}
+          </Text>
+          <Pressable onPress={loadItems} hitSlop={8}>
+            <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {TABS.map(tab => {
@@ -311,4 +327,15 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '700' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingTop: 4 },
+  errorBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 12,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  errorText: { fontSize: 13, flex: 1 },
+  retryText: { fontSize: 13, fontWeight: '700' },
 });

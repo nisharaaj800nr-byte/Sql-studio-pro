@@ -166,7 +166,9 @@ export default function AIScreen() {
             schemaParts.push(`${t.name}(${colDefs})`);
           }
           schema = schemaParts.join('\n');
-        } catch {}
+        } catch (schemaErr) {
+          console.warn('[AI] Could not build schema context:', schemaErr);
+        }
       }
 
       // Try heuristic first (offline, instant)

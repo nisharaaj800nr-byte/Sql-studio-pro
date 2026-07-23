@@ -57,12 +57,21 @@ SQL Studio Pro is a mobile SQLite IDE for Android/iOS:
 - Keep project as a pnpm monorepo — do not convert to single-package
 - Reduce zip exports to exclude .git, .local, node_modules (clean zip only ~2.4MB)
 
+## Setup (first run on a new environment)
+
+```
+pnpm install
+```
+
+Both workflows start automatically after install. No other setup needed for offline features.
+
 ## Gotchas
 
 - `expo-file-system` v57 removed `cacheDirectory`/`documentDirectory` as direct module exports — use `(FileSystem as any).cacheDirectory` pattern (see `exportUtils.ts`)
+- expo-document-picker / expo-file-system / expo-sharing are pinned to v57 (vs Expo 54's expected v14/v19). The version-mismatch warning is cosmetic — do NOT downgrade without fixing the Metro file-watcher ENOENT issue first (see Task #4)
 - API server uses `SESSION_SECRET` env var for HMAC auth — already configured as a Replit secret
 - `DATABASE_URL` not set → DB routes return empty arrays, not errors. Set it via Replit database integration before enabling remote-connection features
-- mockup-sandbox has pre-existing TypeScript errors (unrelated react version mismatch in spinner.tsx) — ignore, runtime is fine
+- mockup-sandbox workflow is not needed for the main app — only for UI component prototyping
 
 ## Pointers
 

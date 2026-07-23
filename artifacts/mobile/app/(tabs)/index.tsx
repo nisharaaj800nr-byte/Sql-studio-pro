@@ -31,8 +31,25 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { databases, isLoading, setActiveDbId } = useDatabases();
   const { queryHistory, setCurrentSql, totalQueriesRun } = useEditor();
+  const [totalTables, setTotalTables] = React.useState(0);
 
-  const totalTables = 0; // Placeholder - would need async count
+  React.useEffect(() => {
+    if (databases.length === 0) { setTotalTables(0); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getTables } = await import('@/utils/sqliteManager');
+        let count = 0;
+        for (const db of databases) {
+          const items = await getTables(db.id);
+          count += items.filter(t => t.type === 'table').length;
+        }
+        if (!cancelled) setTotalTables(count);
+      } catch { /* non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, [databases]);
+
   const recentDBs = databases.slice(0, 3);
   const recentHistory = queryHistory.slice(0, 5);
 
@@ -76,19 +93,19 @@ export default function DashboardScreen() {
           icon="database"
           label="Databases"
           value={databases.length}
-          color="#58A6FF"
+          color={colors.tint}
         />
         <StatCard
           icon="table-multiple"
           label="Queries Run"
           value={formatNumber(totalQueriesRun)}
-          color="#3FB950"
+          color={colors.accent}
         />
         <StatCard
           icon="history"
           label="History"
           value={formatNumber(queryHistory.length)}
-          color="#D2A8FF"
+          color={colors.primary}
         />
       </View>
 
