@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initDatabase, dbFileExists, deleteDbFile } from '@/utils/sqliteManager';
+import { initDatabase, dbFileExists, deleteDbFile, DatabaseCorruptError } from '@/utils/sqliteManager';
 
 const DB_COLORS = [
   '#58A6FF', '#3FB950', '#F85149', '#D2A8FF',
@@ -14,6 +14,7 @@ export interface DatabaseMeta {
   createdAt: string;
   lastModified: string;
   color: string;
+  corrupt?: boolean; // Task 1.7: flagged when SQLite reports corruption on open
 }
 
 interface DatabaseContextType {
@@ -27,6 +28,7 @@ interface DatabaseContextType {
   touchDatabase: (id: string) => Promise<void>;
   refreshDatabases: () => Promise<void>;
   getDb: (id: string) => DatabaseMeta | undefined;
+  markCorrupt: (id: string) => void; // Task 1.7
 }
 
 const STORAGE_KEY = '@sqlstudio_databases_v2';
@@ -124,6 +126,13 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   const getDb = (id: string) => databases.find(d => d.id === id);
 
+  // Task 1.7: mark a DB as corrupt in state so the UI can show recovery options
+  const markCorrupt = (id: string) => {
+    setDatabases(prev =>
+      prev.map(d => d.id === id ? { ...d, corrupt: true } : d)
+    );
+  };
+
   return (
     <DatabaseContext.Provider
       value={{
@@ -137,6 +146,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         touchDatabase,
         refreshDatabases: loadDatabases,
         getDb,
+        markCorrupt,
       }}
     >
       {children}

@@ -9,6 +9,8 @@ export interface QueryResult {
   executionTime: number;
   error?: string;
   type: 'select' | 'dml' | 'ddl' | 'error';
+  /** true when the result was clipped to maxRows — more rows exist in DB */
+  truncated?: boolean;
 }
 
 export interface TableInfo {
@@ -49,10 +51,39 @@ function escapeIdentifier(name: string): string {
 
 async function openDb(dbId: string): Promise<SQLite.SQLiteDatabase> {
   if (!dbCache[dbId]) {
-    dbCache[dbId] = await SQLite.openDatabaseAsync(`sqlstudio_${dbId}.db`);
+    try {
+      dbCache[dbId] = await SQLite.openDatabaseAsync(`sqlstudio_${dbId}.db`);
+    } catch (e) {
+      if (isCorruptionError(e)) throw new DatabaseCorruptError(dbId, e as Error);
+      throw e;
+    }
   }
   return dbCache[dbId];
 }
+
+// ─── Task 1.7: Corrupt DB detection ────────────────────────────────────────
+
+/** Thrown when SQLite reports the database file is irrecoverably damaged. */
+export class DatabaseCorruptError extends Error {
+  constructor(dbId: string, cause: Error) {
+    super(`Database "${dbId}" is corrupt: ${cause.message}`);
+    this.name = 'DatabaseCorruptError';
+  }
+}
+
+const CORRUPT_PATTERNS = [
+  'database disk image is malformed',
+  'file is not a database',
+  'database is corrupt',
+  'database corruption',
+];
+
+function isCorruptionError(e: unknown): boolean {
+  const msg = ((e as Error)?.message ?? '').toLowerCase();
+  return CORRUPT_PATTERNS.some(p => msg.includes(p));
+}
+
+// ─── READ-ONLY keyword set ───────────────────────────────────────────────────
 
 /**
  * READ-ONLY keywords: queries that return rows and must use getAllAsync.
@@ -96,21 +127,43 @@ function isSelectStatement(sql: string): boolean {
   return READ_ONLY_KEYWORDS.has(match[1].toUpperCase());
 }
 
-export async function executeQuery(dbId: string, sql: string): Promise<QueryResult> {
+/**
+ * Execute a SQL statement.
+ * @param maxRows  When set, SELECT queries fetch at most maxRows+1 rows so we
+ *                 can detect truncation without loading the full result set.
+ *                 Ignored for DML/DDL.
+ */
+export async function executeQuery(
+  dbId: string,
+  sql: string,
+  maxRows?: number
+): Promise<QueryResult> {
   const start = Date.now();
   try {
     const db = await openDb(dbId);
 
     if (isSelectStatement(sql)) {
-      const rows = await db.getAllAsync<Record<string, unknown>>(sql);
+      // Task 1.6: cap rows at the DB level so we never load millions into memory.
+      // We fetch maxRows+1; if we get that many we know the result was truncated.
+      let querySql = sql;
+      let cap: number | undefined;
+      if (maxRows && maxRows > 0 && !/\bLIMIT\b/i.test(sql)) {
+        cap = maxRows;
+        querySql = `${sql.trimEnd().replace(/;$/, '')} LIMIT ${maxRows + 1}`;
+      }
+
+      const allRows = await db.getAllAsync<Record<string, unknown>>(querySql);
+      const truncated = cap !== undefined && allRows.length > cap;
+      const rows = truncated ? allRows.slice(0, cap) : allRows;
       const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-      // If no rows, try to get column names via a prepared statement approach
+
       return {
         columns,
         rows,
         rowsAffected: 0,
         executionTime: Date.now() - start,
         type: 'select',
+        truncated,
       };
     } else {
       const result = await db.runAsync(sql);
@@ -124,6 +177,9 @@ export async function executeQuery(dbId: string, sql: string): Promise<QueryResu
       };
     }
   } catch (e) {
+    // Re-throw corruption errors so callers can offer targeted recovery.
+    if (e instanceof DatabaseCorruptError) throw e;
+    if (isCorruptionError(e)) throw new DatabaseCorruptError(dbId, e as Error);
     return {
       columns: [],
       rows: [],

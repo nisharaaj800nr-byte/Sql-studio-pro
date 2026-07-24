@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { executeQuery as execSql, QueryResult } from '@/utils/sqliteManager';
+import { executeQuery as execSql, QueryResult, DatabaseCorruptError } from '@/utils/sqliteManager';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export interface QueryHistoryEntry {
@@ -96,8 +96,14 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
     let result: QueryResult;
     try {
-      result = await Promise.race([execSql(dbId, trimmedSql), timeoutPromise]);
+      // Task 1.6: pass maxRows so the DB caps the fetch at the source,
+      // not after loading potentially millions of rows into JS memory.
+      result = await Promise.race([
+        execSql(dbId, trimmedSql, settings.rowLimit),
+        timeoutPromise,
+      ]);
     } catch (e) {
+      if (e instanceof DatabaseCorruptError) throw e; // let DatabaseErrorBoundary handle it
       result = {
         columns: [],
         rows: [],
@@ -105,14 +111,6 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         executionTime: timeoutMs,
         error: (e as Error).message,
         type: 'error',
-      };
-    }
-
-    // Apply row limit from settings (only on SELECT results)
-    if (result.type === 'select' && result.rows.length > settings.rowLimit) {
-      result = {
-        ...result,
-        rows: result.rows.slice(0, settings.rowLimit),
       };
     }
 
