@@ -7,7 +7,7 @@
 
 | Phase | Total Tasks | Done | % |
 |-------|-------------|------|---|
-| Phase 1 — Core Stability | 7 | 2 | 28% |
+| Phase 1 — Core Stability | 7 | 3 | 43% |
 | Phase 2A — SQL Editor | 7 | 0 | 0% |
 | Phase 2B — Table & Data | 6 | 0 | 0% |
 | Phase 2C — Schema & Viz | 4 | 0 | 0% |
@@ -15,7 +15,7 @@
 | Phase 3 — Multi-Language | 13 | 0 | 0% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
 | Testing | 4 | 0 | 0% |
-| **TOTAL** | **50** | **2** | **4%** |
+| **TOTAL** | **50** | **3** | **6%** |
 
 ---
 
@@ -26,13 +26,14 @@
 |---|------|-------------|
 | 1.1 | SQL Injection fix — table names escape karo | 2026-07-24 |
 | 1.2 | Memory crash fix — large DB export chunked karo | 2026-07-24 |
+| 1.3 | `isSelectStatement` — proper SQL parser use karo | 2026-07-24 |
 
 ---
 
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Next: Task 1.3 — `isSelectStatement` proper SQL parser use karo_
+_Next: Task 1.4 — Database file sync fix (AsyncStorage vs filesystem)_
 
 ---
 
@@ -55,6 +56,16 @@ _Next: Task 1.3 — `isSelectStatement` proper SQL parser use karo_
   - `dropIndex` → `DROP INDEX IF EXISTS`
   - `getTables` → `SELECT COUNT(*)`
   - `exportDatabaseToSQL` → `SELECT * FROM` + `INSERT INTO` + column names
+
+### ✅ Task 1.3 — isSelectStatement Proper Parser (2026-07-24)
+**File:** `artifacts/mobile/utils/sqliteManager.ts`
+**Kya kiya:**
+- `READ_ONLY_KEYWORDS` Set banaya (SELECT, WITH, EXPLAIN, PRAGMA, SHOW, VALUES)
+- Comment-stripping loop add kiya — `--` single-line aur `/* */` block comments strip hote hain pehle
+- Pehla SQL keyword extract karke Set se check hota hai — prefix matching nahi
+- Ab `-- comment\nSELECT ...` bhi correctly read-only classify hoga
+
+---
 
 ### ✅ Task 1.2 — Memory Crash Fix (2026-07-24)
 **File:** `artifacts/mobile/utils/sqliteManager.ts`

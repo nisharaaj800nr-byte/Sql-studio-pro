@@ -1,5 +1,5 @@
 # SQL Studio Pro — Project Status
-> Last Updated: 2026-07-24 (Task 1.2 Done)
+> Last Updated: 2026-07-24 (Task 1.3 Done)
 > Vision: Ek professional, offline-first, multi-language database IDE for mobile
 
 ---
@@ -7,12 +7,12 @@
 ## 🎯 Overall Progress
 
 ```
-Phase 1 — Core Stability         ██░░░░░░░░  28%  (2/7)
+Phase 1 — Core Stability         ███░░░░░░░  43%  (3/7)
 Phase 2 — Professional Features  ░░░░░░░░░░   0%
 Phase 3 — Multi-Language Support ░░░░░░░░░░   0%
 Phase 4 — Cloud & AI             ░░░░░░░░░░   0%
 
-Total: 2 / 47 tasks complete
+Total: 3 / 47 tasks complete
 ```
 
 ---
@@ -24,7 +24,7 @@ Total: 2 / 47 tasks complete
 |---|------|----------|--------|
 | 1.1 | SQL Injection fix — table names escape karo | 🔴 Critical | ✅ Done |
 | 1.2 | Memory crash fix — large DB export chunked karo | 🔴 Critical | ✅ Done |
-| 1.3 | `isSelectStatement` — proper SQL parser use karo | 🔴 Critical | ⬜ Todo |
+| 1.3 | `isSelectStatement` — proper SQL parser use karo | 🔴 Critical | ✅ Done |
 | 1.4 | Database file sync fix — AsyncStorage vs filesystem | 🔴 Critical | ⬜ Todo |
 | 1.5 | Global error boundary improve karo (DB-specific errors) | 🟠 High | ⬜ Todo |
 | 1.6 | Query result memory limit (large result sets) | 🟠 High | ⬜ Todo |

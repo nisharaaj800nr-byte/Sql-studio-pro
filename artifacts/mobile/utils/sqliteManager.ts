@@ -53,15 +53,46 @@ async function openDb(dbId: string): Promise<SQLite.SQLiteDatabase> {
   return dbCache[dbId];
 }
 
+/**
+ * READ-ONLY keywords: queries that return rows and must use getAllAsync.
+ * Everything else (INSERT/UPDATE/DELETE/CREATE/DROP…) uses runAsync.
+ */
+const READ_ONLY_KEYWORDS = new Set([
+  'SELECT', 'WITH', 'EXPLAIN', 'PRAGMA', 'SHOW', 'VALUES',
+]);
+
+/**
+ * Strip leading SQL comments and whitespace, then check the first keyword.
+ * Handles:
+ *   -- single-line comments
+ *   /* multi-line block comments *\/
+ *   mixed leading whitespace
+ * This avoids false negatives like "-- get users\nSELECT ..." being
+ * classified as a DML statement.
+ */
 function isSelectStatement(sql: string): boolean {
-  const trimmed = sql.trim().toUpperCase();
-  return (
-    trimmed.startsWith('SELECT') ||
-    trimmed.startsWith('WITH') ||
-    trimmed.startsWith('EXPLAIN') ||
-    trimmed.startsWith('PRAGMA') ||
-    trimmed.startsWith('SHOW')
-  );
+  let s = sql;
+
+  // Repeatedly strip leading whitespace and comments until the real SQL starts
+  while (true) {
+    s = s.trimStart();
+    if (s.startsWith('--')) {
+      // single-line comment: skip to end of line
+      const nl = s.indexOf('\n');
+      s = nl === -1 ? '' : s.slice(nl + 1);
+    } else if (s.startsWith('/*')) {
+      // block comment: skip to closing */
+      const end = s.indexOf('*/');
+      s = end === -1 ? '' : s.slice(end + 2);
+    } else {
+      break;
+    }
+  }
+
+  // Extract the first word (the SQL verb)
+  const match = s.match(/^([A-Za-z_]+)/);
+  if (!match) return false;
+  return READ_ONLY_KEYWORDS.has(match[1].toUpperCase());
 }
 
 export async function executeQuery(dbId: string, sql: string): Promise<QueryResult> {
