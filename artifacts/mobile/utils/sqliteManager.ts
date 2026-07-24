@@ -36,6 +36,16 @@ export interface IndexInfo {
 
 const dbCache: Record<string, SQLite.SQLiteDatabase> = {};
 
+/**
+ * Safely escape a SQL identifier (table name, column name, index name).
+ * Doubles any embedded double-quotes per SQLite spec so they cannot
+ * break out of the quoted identifier and inject arbitrary SQL.
+ * Usage: `"${escapeIdentifier(name)}"`
+ */
+function escapeIdentifier(name: string): string {
+  return name.replace(/"/g, '""');
+}
+
 async function openDb(dbId: string): Promise<SQLite.SQLiteDatabase> {
   if (!dbCache[dbId]) {
     dbCache[dbId] = await SQLite.openDatabaseAsync(`sqlstudio_${dbId}.db`);
@@ -132,7 +142,7 @@ export async function getTables(dbId: string): Promise<TableInfo[]> {
     if (item.type === 'table') {
       try {
         const countResult = await db.getAllAsync<{ count: number }>(
-          `SELECT COUNT(*) as count FROM "${item.name}"`
+          `SELECT COUNT(*) as count FROM "${escapeIdentifier(item.name)}"`
         );
         rowCount = countResult[0]?.count ?? 0;
       } catch {
@@ -151,7 +161,7 @@ export async function getTables(dbId: string): Promise<TableInfo[]> {
 
 export async function getColumns(dbId: string, tableName: string): Promise<ColumnInfo[]> {
   const db = await openDb(dbId);
-  return db.getAllAsync<ColumnInfo>(`PRAGMA table_info("${tableName}")`);
+  return db.getAllAsync<ColumnInfo>(`PRAGMA table_info("${escapeIdentifier(tableName)}")`);
 }
 
 export async function getTableData(
@@ -162,7 +172,7 @@ export async function getTableData(
 ): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
   const db = await openDb(dbId);
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`
+    `SELECT * FROM "${escapeIdentifier(tableName)}" LIMIT ${limit} OFFSET ${offset}`
   );
   if (rows.length > 0) {
     return { columns: Object.keys(rows[0]), rows };
@@ -174,7 +184,7 @@ export async function getTableData(
 export async function getTableRowCount(dbId: string, tableName: string): Promise<number> {
   try {
     const db = await openDb(dbId);
-    const result = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${tableName}"`);
+    const result = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${escapeIdentifier(tableName)}"`);
     return result[0]?.count ?? 0;
   } catch {
     return 0;
@@ -183,7 +193,7 @@ export async function getTableRowCount(dbId: string, tableName: string): Promise
 
 export async function getIndexes(dbId: string, tableName: string): Promise<IndexInfo[]> {
   const db = await openDb(dbId);
-  return db.getAllAsync<IndexInfo>(`PRAGMA index_list("${tableName}")`);
+  return db.getAllAsync<IndexInfo>(`PRAGMA index_list("${escapeIdentifier(tableName)}")`);
 }
 
 export async function initDatabase(dbId: string): Promise<void> {
@@ -212,7 +222,7 @@ export async function getDatabaseStats(dbId: string): Promise<{ pageSize: number
 
 export async function exportTableToCSV(dbId: string, tableName: string): Promise<string> {
   const db = await openDb(dbId);
-  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${tableName}"`);
+  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(tableName)}"`);
   if (rows.length === 0) return '';
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
@@ -228,7 +238,7 @@ export async function exportTableToCSV(dbId: string, tableName: string): Promise
 
 export async function exportTableToJSON(dbId: string, tableName: string): Promise<string> {
   const db = await openDb(dbId);
-  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${tableName}"`);
+  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(tableName)}"`);
   return JSON.stringify(rows, null, 2);
 }
 
@@ -272,7 +282,7 @@ export async function getAllTableStats(dbId: string): Promise<TableStats[]> {
   const stats: TableStats[] = [];
   for (const t of tables) {
     try {
-      const countRes = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${t.name}"`);
+      const countRes = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${escapeIdentifier(t.name)}"`);
       const rowCount = countRes[0]?.count ?? 0;
       stats.push({ name: t.name, rowCount, sizeEstimateBytes: rowCount * pageSize * 0.1 });
     } catch {
@@ -284,11 +294,11 @@ export async function getAllTableStats(dbId: string): Promise<TableStats[]> {
 
 export async function getIndexDetail(dbId: string, indexName: string): Promise<Record<string, unknown>[]> {
   const db = await openDb(dbId);
-  return db.getAllAsync<Record<string, unknown>>(`PRAGMA index_info("${indexName}")`);
+  return db.getAllAsync<Record<string, unknown>>(`PRAGMA index_info("${escapeIdentifier(indexName)}")`);
 }
 
 export async function dropIndex(dbId: string, indexName: string): Promise<QueryResult> {
-  return executeQuery(dbId, `DROP INDEX IF EXISTS "${indexName}"`);
+  return executeQuery(dbId, `DROP INDEX IF EXISTS "${escapeIdentifier(indexName)}"`);
 }
 
 export function getDatabaseFilename(dbId: string): string {
@@ -309,13 +319,13 @@ export async function exportDatabaseToSQL(dbId: string): Promise<string> {
     if (t.sql) sql += `${t.sql};\n\n`;
     if (t.type === 'table') {
       try {
-        const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${t.name}"`);
+        const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(t.name)}"`);
         for (const row of rows) {
-          const cols = Object.keys(row).map(c => `"${c}"`).join(', ');
+          const cols = Object.keys(row).map(c => `"${escapeIdentifier(c)}"`).join(', ');
           const vals = Object.values(row).map(v =>
             v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`
           ).join(', ');
-          sql += `INSERT INTO "${t.name}" (${cols}) VALUES (${vals});\n`;
+          sql += `INSERT INTO "${escapeIdentifier(t.name)}" (${cols}) VALUES (${vals});\n`;
         }
         sql += '\n';
       } catch { /* skip */ }

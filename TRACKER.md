@@ -7,7 +7,7 @@
 
 | Phase | Total Tasks | Done | % |
 |-------|-------------|------|---|
-| Phase 1 — Core Stability | 7 | 0 | 0% |
+| Phase 1 — Core Stability | 7 | 1 | 14% |
 | Phase 2A — SQL Editor | 7 | 0 | 0% |
 | Phase 2B — Table & Data | 6 | 0 | 0% |
 | Phase 2C — Schema & Viz | 4 | 0 | 0% |
@@ -15,26 +15,45 @@
 | Phase 3 — Multi-Language | 13 | 0 | 0% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
 | Testing | 4 | 0 | 0% |
-| **TOTAL** | **50** | **0** | **0%** |
+| **TOTAL** | **50** | **1** | **2%** |
 
 ---
 
 ## ✅ Completed Tasks
 > Jab bhi koi task complete ho, yahan add karo
 
-_Abhi koi task complete nahi hua._
+| # | Task | Completed On |
+|---|------|-------------|
+| 1.1 | SQL Injection fix — table names escape karo | 2026-07-24 |
 
 ---
 
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Koi kaam shuru nahi hua._
+_Next: Task 1.2 — Memory crash fix (large DB export chunked karna hai)_
 
 ---
 
 ## 📋 Task Detail Log
 > Har completed task ki detail — kya kiya, kahan kiya, kab kiya
+
+### ✅ Task 1.1 — SQL Injection Fix (2026-07-24)
+**File:** `artifacts/mobile/utils/sqliteManager.ts`
+**Kya kiya:**
+- `escapeIdentifier(name)` function banaya — andar ke `"` ko `""` se replace karta hai (SQLite standard)
+- Ye function in saari jagahon pe apply kiya:
+  - `getColumns` → `PRAGMA table_info`
+  - `getTableData` → `SELECT * FROM`
+  - `getTableRowCount` → `SELECT COUNT(*)`
+  - `getIndexes` → `PRAGMA index_list`
+  - `exportTableToCSV` → `SELECT * FROM`
+  - `exportTableToJSON` → `SELECT * FROM`
+  - `getAllTableStats` → `SELECT COUNT(*)`
+  - `getIndexDetail` → `PRAGMA index_info`
+  - `dropIndex` → `DROP INDEX IF EXISTS`
+  - `getTables` → `SELECT COUNT(*)`
+  - `exportDatabaseToSQL` → `SELECT * FROM` + `INSERT INTO` + column names
 
 ---
 
