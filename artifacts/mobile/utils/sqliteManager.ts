@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
 
 export interface QueryResult {
   columns: string[];
@@ -381,6 +382,39 @@ export async function dropIndex(dbId: string, indexName: string): Promise<QueryR
 
 export function getDatabaseFilename(dbId: string): string {
   return `sqlstudio_${dbId}.db`;
+}
+
+/**
+ * Returns true when the physical SQLite file exists on disk.
+ * Use this to detect databases that were registered in AsyncStorage
+ * but whose files were deleted or never created (e.g. after a reinstall
+ * of app data without clearing AsyncStorage).
+ */
+export async function dbFileExists(dbId: string): Promise<boolean> {
+  try {
+    const dir = FileSystem.documentDirectory ?? '';
+    const path = `${dir}SQLite/sqlstudio_${dbId}.db`;
+    const info = await FileSystem.getInfoAsync(path);
+    return info.exists;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Close the in-memory connection and delete the physical .db file.
+ * Called by DatabaseContext.deleteDatabase so the file doesn't linger.
+ */
+export async function deleteDbFile(dbId: string): Promise<void> {
+  await closeDatabase(dbId); // flush cache first
+  try {
+    const dir = FileSystem.documentDirectory ?? '';
+    const path = `${dir}SQLite/sqlstudio_${dbId}.db`;
+    const info = await FileSystem.getInfoAsync(path);
+    if (info.exists) await FileSystem.deleteAsync(path, { idempotent: true });
+  } catch {
+    // best-effort — ignore if file is already gone
+  }
 }
 
 export async function exportDatabaseToSQL(dbId: string): Promise<string> {

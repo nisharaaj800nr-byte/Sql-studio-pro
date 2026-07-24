@@ -7,7 +7,7 @@
 
 | Phase | Total Tasks | Done | % |
 |-------|-------------|------|---|
-| Phase 1 — Core Stability | 7 | 3 | 43% |
+| Phase 1 — Core Stability | 7 | 4 | 57% |
 | Phase 2A — SQL Editor | 7 | 0 | 0% |
 | Phase 2B — Table & Data | 6 | 0 | 0% |
 | Phase 2C — Schema & Viz | 4 | 0 | 0% |
@@ -15,7 +15,7 @@
 | Phase 3 — Multi-Language | 13 | 0 | 0% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
 | Testing | 4 | 0 | 0% |
-| **TOTAL** | **50** | **3** | **6%** |
+| **TOTAL** | **50** | **4** | **8%** |
 
 ---
 
@@ -27,13 +27,14 @@
 | 1.1 | SQL Injection fix — table names escape karo | 2026-07-24 |
 | 1.2 | Memory crash fix — large DB export chunked karo | 2026-07-24 |
 | 1.3 | `isSelectStatement` — proper SQL parser use karo | 2026-07-24 |
+| 1.4 | Database file sync fix — AsyncStorage vs filesystem | 2026-07-24 |
 
 ---
 
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Next: Task 1.4 — Database file sync fix (AsyncStorage vs filesystem)_
+_Next: Task 1.5 — Global error boundary improve karo (DB-specific errors)_
 
 ---
 
@@ -56,6 +57,16 @@ _Next: Task 1.4 — Database file sync fix (AsyncStorage vs filesystem)_
   - `dropIndex` → `DROP INDEX IF EXISTS`
   - `getTables` → `SELECT COUNT(*)`
   - `exportDatabaseToSQL` → `SELECT * FROM` + `INSERT INTO` + column names
+
+### ✅ Task 1.4 — Database File Sync Fix (2026-07-24)
+**Files:** `artifacts/mobile/utils/sqliteManager.ts`, `artifacts/mobile/contexts/DatabaseContext.tsx`
+**Kya kiya:**
+- `dbFileExists(dbId)` — `expo-file-system` se check karta hai file disk pe hai ya nahi
+- `deleteDbFile(dbId)` — cache flush + physical `.db` file delete karta hai
+- `loadDatabases` mein parallel existence check — jo files missing hain wo AsyncStorage se bhi remove hoti hain (no ghost entries)
+- `deleteDatabase` mein ab `deleteDbFile` call hoti hai — storage leak band
+
+---
 
 ### ✅ Task 1.3 — isSelectStatement Proper Parser (2026-07-24)
 **File:** `artifacts/mobile/utils/sqliteManager.ts`

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initDatabase } from '@/utils/sqliteManager';
+import { initDatabase, dbFileExists, deleteDbFile } from '@/utils/sqliteManager';
 
 const DB_COLORS = [
   '#58A6FF', '#3FB950', '#F85149', '#D2A8FF',
@@ -42,9 +42,24 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed: DatabaseMeta[] = JSON.parse(stored);
-        setDatabases(parsed);
-        if (!activeDbId && parsed.length > 0) {
-          setActiveDbId(parsed[0].id);
+
+        // Verify each database's .db file actually exists on disk.
+        // If a file is missing (e.g. app data cleared, file deleted externally)
+        // we silently drop it from the list so the UI never shows a ghost entry.
+        const existChecks = await Promise.all(parsed.map(d => dbFileExists(d.id)));
+        const valid = parsed.filter((_, i) => existChecks[i]);
+
+        if (valid.length !== parsed.length) {
+          // Persist cleaned list so stale entries don't reappear
+          console.warn(
+            `[DatabaseContext] Removed ${parsed.length - valid.length} ghost DB(s) missing from disk`
+          );
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+        }
+
+        setDatabases(valid);
+        if (!activeDbId && valid.length > 0) {
+          setActiveDbId(valid[0].id);
         }
       }
     } catch (e) {
@@ -86,6 +101,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     if (activeDbId === id) {
       setActiveDbId(updated[0]?.id ?? null);
     }
+    // Delete the physical .db file so storage isn't leaked
+    await deleteDbFile(id);
   };
 
   const updateDatabase = async (
