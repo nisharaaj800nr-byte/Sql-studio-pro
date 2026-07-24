@@ -68,6 +68,11 @@ export function sanitizeTableName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^[0-9]/, '_$&');
 }
 
+/** Alias for SavedQueriesPanel compatibility */
+export function formatDistanceToNow(isoString: string): string {
+  return formatRelativeTime(isoString);
+}
+
 export function escapeSQL(value: unknown): string {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'number') return String(value);

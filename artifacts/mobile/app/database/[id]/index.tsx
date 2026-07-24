@@ -18,20 +18,24 @@ import { TableCard } from '@/components/TableCard';
 import { EmptyState } from '@/components/EmptyState';
 import { FAB } from '@/components/FAB';
 import { InputModal } from '@/components/InputModal';
+import { DatabaseErrorBoundary } from '@/components/DatabaseErrorBoundary';
 import { getTables, executeQuery, TableInfo } from '@/utils/sqliteManager';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { CreateTableModal, ColumnDef } from '@/components/CreateTableModal';
+import { ERDiagram } from '@/components/ERDiagram';
 
-type TabKey = 'tables' | 'views' | 'indexes' | 'triggers';
+type TabKey = 'tables' | 'views' | 'indexes' | 'triggers' | 'er';
 
-const TABS: { key: TabKey; label: string; dbType: string }[] = [
+const TABS: { key: TabKey; label: string; dbType?: string }[] = [
   { key: 'tables', label: 'Tables', dbType: 'table' },
   { key: 'views', label: 'Views', dbType: 'view' },
   { key: 'indexes', label: 'Indexes', dbType: 'index' },
   { key: 'triggers', label: 'Triggers', dbType: 'trigger' },
+  { key: 'er', label: 'ER' },
 ];
 
-export default function DatabaseDetailScreen() {
+function DatabaseDetailInner() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useColors();
@@ -68,6 +72,27 @@ export default function DatabaseDetailScreen() {
   const filtered = allItems.filter(
     item => item.type === TABS.find(t => t.key === activeTab)?.dbType
   );
+
+  // Task 2.9 — Build CREATE TABLE SQL from column definitions
+  const handleCreateTableWithCols = async (tableName: string, cols: ColumnDef[]) => {
+    setShowCreateTable(false);
+    if (!id) return;
+    const colDefs = cols.map(c => {
+      let def = `  "${c.name}" ${c.type}`;
+      if (c.primaryKey) def += ' PRIMARY KEY AUTOINCREMENT';
+      if (c.notNull && !c.primaryKey) def += ' NOT NULL';
+      if (c.defaultValue) def += ` DEFAULT ${c.defaultValue}`;
+      return def;
+    });
+    const sql = `CREATE TABLE IF NOT EXISTS "${tableName}" (\n${colDefs.join(',\n')}\n);`;
+    const result = await executeQuery(id, sql);
+    if (result.error) {
+      Alert.alert('Error', result.error);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadItems();
+    }
+  };
 
   const handleOpenInEditor = () => {
     if (id) {
@@ -222,7 +247,10 @@ export default function DatabaseDetailScreen() {
       </View>
 
       {/* Content */}
-      {isLoading ? (
+      {/* Task 2.14: ER Diagram tab */}
+      {activeTab === 'er' ? (
+        id ? <ERDiagram dbId={id} /> : null
+      ) : isLoading ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -271,16 +299,26 @@ export default function DatabaseDetailScreen() {
         <FAB icon="add" onPress={handleCreateTable} />
       )}
 
-      <InputModal
+      {/* Task 2.9: Full column-definition Create Table modal */}
+      <CreateTableModal
         visible={showCreateTable}
-        title="New Table"
-        message="A default schema will be created. You can alter it from the SQL editor."
-        placeholder="e.g. users, products, orders"
-        confirmLabel="Create"
-        onConfirm={handleCreateTableConfirm}
+        onConfirm={handleCreateTableWithCols}
         onCancel={() => setShowCreateTable(false)}
       />
     </View>
+  );
+}
+
+// Task 1.5: Wrap with DB-specific error boundary
+export default function DatabaseDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { deleteDatabase } = useDatabases();
+  return (
+    <DatabaseErrorBoundary
+      onDeleteDatabase={id ? () => deleteDatabase(id) : undefined}
+    >
+      <DatabaseDetailInner />
+    </DatabaseErrorBoundary>
   );
 }
 
