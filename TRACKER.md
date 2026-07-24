@@ -7,7 +7,7 @@
 
 | Phase | Total Tasks | Done | % |
 |-------|-------------|------|---|
-| Phase 1 — Core Stability | 7 | 1 | 14% |
+| Phase 1 — Core Stability | 7 | 2 | 28% |
 | Phase 2A — SQL Editor | 7 | 0 | 0% |
 | Phase 2B — Table & Data | 6 | 0 | 0% |
 | Phase 2C — Schema & Viz | 4 | 0 | 0% |
@@ -15,7 +15,7 @@
 | Phase 3 — Multi-Language | 13 | 0 | 0% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
 | Testing | 4 | 0 | 0% |
-| **TOTAL** | **50** | **1** | **2%** |
+| **TOTAL** | **50** | **2** | **4%** |
 
 ---
 
@@ -25,13 +25,14 @@
 | # | Task | Completed On |
 |---|------|-------------|
 | 1.1 | SQL Injection fix — table names escape karo | 2026-07-24 |
+| 1.2 | Memory crash fix — large DB export chunked karo | 2026-07-24 |
 
 ---
 
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Next: Task 1.2 — Memory crash fix (large DB export chunked karna hai)_
+_Next: Task 1.3 — `isSelectStatement` proper SQL parser use karo_
 
 ---
 
@@ -54,6 +55,15 @@ _Next: Task 1.2 — Memory crash fix (large DB export chunked karna hai)_
   - `dropIndex` → `DROP INDEX IF EXISTS`
   - `getTables` → `SELECT COUNT(*)`
   - `exportDatabaseToSQL` → `SELECT * FROM` + `INSERT INTO` + column names
+
+### ✅ Task 1.2 — Memory Crash Fix (2026-07-24)
+**File:** `artifacts/mobile/utils/sqliteManager.ts`
+**Kya kiya:**
+- `EXPORT_CHUNK_SIZE = 500` constant banaya
+- `exportTableToCSV` — LIMIT/OFFSET chunks mein rows fetch karta hai, pure table ko ek baar memory mein nahi laata
+- `exportTableToJSON` — streaming JSON array, ek saath pura array nahi banta
+- `exportDatabaseToSQL` — har table ke liye chunked LIMIT/OFFSET loop, `parts[]` array mein append karta hai concat ki jagah
+- Peak memory usage ab O(chunk) hai, O(table_size) nahi
 
 ---
 

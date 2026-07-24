@@ -220,26 +220,73 @@ export async function getDatabaseStats(dbId: string): Promise<{ pageSize: number
   }
 }
 
+/**
+ * Rows fetched per DB round-trip during exports.
+ * Keeps peak JS heap usage bounded on large tables.
+ */
+const EXPORT_CHUNK_SIZE = 500;
+
 export async function exportTableToCSV(dbId: string, tableName: string): Promise<string> {
   const db = await openDb(dbId);
-  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(tableName)}"`);
-  if (rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const escape = (v: unknown) => {
+  const escaped = escapeIdentifier(tableName);
+
+  const csvEscape = (v: unknown) => {
     if (v === null || v === undefined) return '';
     const s = String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n')
       ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const lines = [headers.join(',')];
-  for (const row of rows) lines.push(headers.map(h => escape(row[h])).join(','));
-  return lines.join('\n');
+
+  let headers: string[] | null = null;
+  const chunks: string[] = [];
+  let offset = 0;
+
+  // Fetch rows in chunks so we never hold the full table in memory at once
+  while (true) {
+    const rows = await db.getAllAsync<Record<string, unknown>>(
+      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
+    );
+    if (rows.length === 0) break;
+
+    if (!headers) {
+      headers = Object.keys(rows[0]);
+      chunks.push(headers.join(','));
+    }
+    for (const row of rows) {
+      chunks.push(headers.map(h => csvEscape(row[h])).join(','));
+    }
+    offset += rows.length;
+    if (rows.length < EXPORT_CHUNK_SIZE) break;
+  }
+
+  return chunks.join('\n');
 }
 
 export async function exportTableToJSON(dbId: string, tableName: string): Promise<string> {
   const db = await openDb(dbId);
-  const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(tableName)}"`);
-  return JSON.stringify(rows, null, 2);
+  const escaped = escapeIdentifier(tableName);
+
+  const parts: string[] = ['[\n'];
+  let offset = 0;
+  let firstRow = true;
+
+  // Stream JSON array row-by-row in chunks to avoid one giant array in memory
+  while (true) {
+    const rows = await db.getAllAsync<Record<string, unknown>>(
+      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
+    );
+    if (rows.length === 0) break;
+
+    for (const row of rows) {
+      parts.push(`${firstRow ? '' : ',\n'}  ${JSON.stringify(row)}`);
+      firstRow = false;
+    }
+    offset += rows.length;
+    if (rows.length < EXPORT_CHUNK_SIZE) break;
+  }
+
+  parts.push('\n]');
+  return parts.join('');
 }
 
 export async function checkIntegrity(dbId: string): Promise<{ ok: boolean; issues: string[] }> {
@@ -311,27 +358,46 @@ export async function exportDatabaseToSQL(dbId: string): Promise<string> {
     `SELECT name, type, sql FROM sqlite_master WHERE type IN ('table','view','index','trigger') AND name NOT LIKE 'sqlite_%'`
   );
 
-  let sql = '-- SQL Studio Pro Export\n';
-  sql += `-- Generated: ${new Date().toISOString()}\n\n`;
-  sql += 'PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n\n';
+  const parts: string[] = [
+    '-- SQL Studio Pro Export\n',
+    `-- Generated: ${new Date().toISOString()}\n\n`,
+    'PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n\n',
+  ];
+
+  const sqlVal = (v: unknown) =>
+    v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
 
   for (const t of tables) {
-    if (t.sql) sql += `${t.sql};\n\n`;
+    if (t.sql) parts.push(`${t.sql};\n\n`);
     if (t.type === 'table') {
       try {
-        const rows = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM "${escapeIdentifier(t.name)}"`);
-        for (const row of rows) {
-          const cols = Object.keys(row).map(c => `"${escapeIdentifier(c)}"`).join(', ');
-          const vals = Object.values(row).map(v =>
-            v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`
-          ).join(', ');
-          sql += `INSERT INTO "${escapeIdentifier(t.name)}" (${cols}) VALUES (${vals});\n`;
+        const escaped = escapeIdentifier(t.name);
+        let offset = 0;
+        let cols: string[] | null = null;
+
+        // Fetch rows in chunks — prevents holding the entire table in memory
+        while (true) {
+          const rows = await db.getAllAsync<Record<string, unknown>>(
+            `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
+          );
+          if (rows.length === 0) break;
+
+          if (!cols) {
+            cols = Object.keys(rows[0]).map(c => `"${escapeIdentifier(c)}"`);
+          }
+          const colStr = cols.join(', ');
+          for (const row of rows) {
+            const vals = Object.values(row).map(sqlVal).join(', ');
+            parts.push(`INSERT INTO "${escaped}" (${colStr}) VALUES (${vals});\n`);
+          }
+          offset += rows.length;
+          if (rows.length < EXPORT_CHUNK_SIZE) break;
         }
-        sql += '\n';
-      } catch { /* skip */ }
+        parts.push('\n');
+      } catch { /* skip corrupt / unreadable tables */ }
     }
   }
 
-  sql += 'COMMIT;\nPRAGMA foreign_keys=ON;\n';
-  return sql;
+  parts.push('COMMIT;\nPRAGMA foreign_keys=ON;\n');
+  return parts.join('');
 }
