@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { InputModal } from '@/components/InputModal';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDatabases } from '@/contexts/DatabaseContext';
@@ -30,6 +31,7 @@ export default function EditorScreen() {
     executeQuery,
     saveQuery,
   } = useEditor();
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const activeDb = databases.find(d => d.id === activeDbId);
 
@@ -65,18 +67,12 @@ export default function EditorScreen() {
     await executeQuery(activeDbId, activeDb.name, currentSql);
   }, [activeDbId, activeDb, currentSql, executeQuery]);
 
-  const handleSave = () => {
-    Alert.prompt('Save Query', 'Enter a name for this query:', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Save',
-        onPress: async (name: string | undefined) => {
-          if (!name?.trim()) return;
-          await saveQuery(name, currentSql, activeDbId ?? undefined);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        },
-      },
-    ], 'plain-text');
+  const handleSave = () => setShowSaveModal(true);
+
+  const handleSaveConfirm = async (name: string) => {
+    setShowSaveModal(false);
+    await saveQuery(name, currentSql, activeDbId ?? undefined);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   return (
@@ -163,6 +159,16 @@ export default function EditorScreen() {
 
       {/* Web bottom inset */}
       {Platform.OS === 'web' && <View style={{ height: 34 }} />}
+
+      <InputModal
+        visible={showSaveModal}
+        title="Save Query"
+        message="Give this query a name so you can find it later."
+        placeholder="e.g. Get all users, Monthly sales"
+        confirmLabel="Save"
+        onConfirm={handleSaveConfirm}
+        onCancel={() => setShowSaveModal(false)}
+      />
     </View>
   );
 }

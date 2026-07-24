@@ -59,6 +59,7 @@
     "expo-document-picker": "^57.0.1",
     "expo-file-system": "^57.0.1",
     "expo-sharing": "^57.0.6",
-    "expo-sqlite": "~16.0.10"
+    "expo-sqlite": "~16.0.10",
+    "sql.js": "^1.14.1"
   }
 }
