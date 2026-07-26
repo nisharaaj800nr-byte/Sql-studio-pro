@@ -146,8 +146,10 @@ export function SQLEditor({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const hasHardError = diagnostics.some(d => d.severity === 'error');
+
   const handleRun = () => {
-    if (isExecuting) return;
+    if (isExecuting || hasHardError) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onRun();
   };
@@ -199,16 +201,26 @@ export function SQLEditor({
           </Pressable>
           <Pressable
             onPress={handleRun}
-            style={[styles.runButton, { backgroundColor: isExecuting ? colors.muted : colors.primary }]}
-            disabled={isExecuting}
+            style={[
+              styles.runButton,
+              { backgroundColor: isExecuting || hasHardError ? colors.muted : colors.primary },
+            ]}
+            disabled={isExecuting || hasHardError}
           >
             {isExecuting ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="play" size={14} color={colors.primaryForeground} />
+              <Ionicons
+                name={hasHardError ? 'ban' : 'play'}
+                size={14}
+                color={hasHardError ? colors.destructive : colors.primaryForeground}
+              />
             )}
-            <Text style={[styles.runText, { color: isExecuting ? colors.mutedForeground : colors.primaryForeground }]}>
-              {isExecuting ? 'Running' : 'Run'}
+            <Text style={[
+              styles.runText,
+              { color: isExecuting || hasHardError ? colors.mutedForeground : colors.primaryForeground },
+            ]}>
+              {isExecuting ? 'Running' : hasHardError ? 'Error' : 'Run'}
             </Text>
           </Pressable>
         </View>

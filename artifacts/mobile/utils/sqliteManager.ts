@@ -556,6 +556,14 @@ export async function getSQLiteVersion(dbId: string): Promise<string> {
   }
 }
 
+/**
+ * Get SQLite capabilities without requiring an existing user database.
+ * Opens a temporary system database, queries capabilities, and leaves it cached.
+ */
+export async function getSQLiteCapabilitiesStandalone(): Promise<SQLiteCapabilities> {
+  return getSQLiteCapabilities('_system_info');
+}
+
 // ─── Chunked export ───────────────────────────────────────────────────────────
 
 const EXPORT_CHUNK_SIZE = 500;

@@ -55,6 +55,7 @@
 | 3.1v | Transaction state tracking — `isInTransaction(dbId)`, `QueryResult.inTransaction`, `getStaticSQLDiagnosticsWithOptions` with in-transaction warning | 2026-07-26 |
 | T.1 | Full test coverage — `__tests__/sqlDiagnostics.test.ts` + `sqliteManager.test.ts` + `sqliteAdvanced.test.ts` (329 tests, 100% pass) | 2026-07-26 |
 | SETUP | Replit import setup — pnpm install, lib builds (api-zod, db), workflow configuration, both services verified running | 2026-07-26 |
+| SQLite-100% | SQLite module 100% complete — dialect detection fixed (@@ROWCOUNT, corruption messages), Settings/About shows live SQLite version + capabilities, ResultGrid truncation warning banner, SQLEditor Run button disabled on hard errors, 408 tests pass (was 329) | 2026-07-26 |
 
 ---
 

@@ -26,9 +26,15 @@ async function getSqlJs() {
 // In-memory database map: name → sql.js Database instance
 const dbMap = {};
 
+// PRAGMAs that sql.js does not support but real SQLite does —
+// return a safe empty result instead of crashing with "out of memory".
+const UNSUPPORTED_PRAGMA_RE = /^\s*PRAGMA\s+compile_options\s*$/i;
+
 function makeDriverFor(db) {
   return {
     getAllAsync: async (sql, params) => {
+      // Guard: sql.js cannot execute PRAGMA compile_options — return [] gracefully.
+      if (UNSUPPORTED_PRAGMA_RE.test(sql)) return [];
       try {
         const stmt = db.prepare(sql);
         if (params && params.length > 0) stmt.bind(params);

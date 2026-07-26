@@ -150,6 +150,16 @@ export function ResultGrid({ result, onExport }: ResultGridProps) {
 
   return (
     <View style={styles.container}>
+      {/* Truncation warning banner */}
+      {result.truncated && (
+        <View style={[styles.truncBanner, { backgroundColor: colors.sqlString + '22', borderBottomColor: colors.sqlString + '66' }]}>
+          <MaterialIcons name="warning-amber" size={14} color={colors.sqlString} />
+          <Text style={[styles.truncText, { color: colors.sqlString }]}>
+            Output truncated — showing {result.rows.length} of more rows. Add a LIMIT clause or raise the Row Limit in Settings.
+          </Text>
+        </View>
+      )}
+
       {/* Meta bar */}
       <View style={[styles.metaBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <MaterialIcons name="table-chart" size={14} color={colors.mutedForeground} />
@@ -230,6 +240,15 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 8 },
   emptyDesc: { fontSize: 13 },
+  truncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
+  truncText: { flex: 1, fontSize: 11, lineHeight: 16 },
   metaBar: {
     flexDirection: 'row',
     alignItems: 'center',

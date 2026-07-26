@@ -117,7 +117,7 @@ Total: 32 / 50 tasks complete + full SQLite test suite
 
 | # | Task | Status |
 |---|------|--------|
-| T.1 | Unit tests — sqliteManager.ts + sqlDiagnostics.ts + sqliteAdvanced.ts (329 tests, all pass) | ✅ Done |
+| T.1 | Unit tests — 408 tests across 4 suites (sqliteManager, sqlDiagnostics, sqliteAdvanced, sqliteCompletion) — all pass | ✅ Done |
 | T.2 | Unit tests — contexts (Database, Editor, Settings) | ⬜ Todo |
 | T.3 | Integration tests — API routes | ⬜ Todo |
 | T.4 | E2E tests — core user flows | ⬜ Todo |

@@ -40,9 +40,11 @@ const TRANSACTIONS = new Set([
 ]);
 const MAINTENANCE = new Set(['VACUUM', 'ANALYZE', 'REINDEX', 'ATTACH', 'DETACH']);
 
-// Keywords that signal non-SQLite dialects (PostgreSQL, MySQL, SQL Server, Oracle)
+// Keywords that signal non-SQLite dialects (PostgreSQL, MySQL, SQL Server, Oracle).
+// NOTE: @@ROWCOUNT and @@IDENTITY start with '@' (non-word chars), so they are placed
+// OUTSIDE the leading \b(...) group to avoid the word-boundary mismatch.
 const OTHER_DIALECT_RE =
-  /\b(ILIKE|SERIAL|AUTO_INCREMENT|NVARCHAR|GETDATE\s*\(|SHOW\s+(?:TABLES|DATABASES|COLUMNS|CREATE|STATUS|INDEX)\b|DESCRIBE\s+\w+|EXPLAIN\s+ANALYZE|ROWNUM\b|SYSDATE\b|NVL\s*\(|DECODE\s*\(|DUAL\b|NEXTVAL\b|CURRVAL\b|TRUNCATE\s+TABLE\b|IDENTITY\s*\(|CHARINDEX\s*\(|PATINDEX\s*\(|DATEPART\s*\(|DATEDIFF\s*\(|DATEADD\s*\(|STUFF\s*\(|ISNULL\s*\(|CONVERT\s*\(|TRY_CAST\s*\(|TRY_CONVERT\s*\(|NEWID\s*\(|SCOPE_IDENTITY\s*\(|@@ROWCOUNT\b|@@IDENTITY\b|OUTPUT\s+INSERTED\b|MERGE\s+INTO\b|TOP\s+\d+\b)/i;
+  /\b(ILIKE|SERIAL|AUTO_INCREMENT|NVARCHAR|GETDATE\s*\(|SHOW\s+(?:TABLES|DATABASES|COLUMNS|CREATE|STATUS|INDEX)\b|DESCRIBE\s+\w+|EXPLAIN\s+ANALYZE|ROWNUM\b|SYSDATE\b|NVL\s*\(|DECODE\s*\(|DUAL\b|NEXTVAL\b|CURRVAL\b|TRUNCATE\s+TABLE\b|IDENTITY\s*\(|CHARINDEX\s*\(|PATINDEX\s*\(|DATEPART\s*\(|DATEDIFF\s*\(|DATEADD\s*\(|STUFF\s*\(|ISNULL\s*\(|CONVERT\s*\(|TRY_CAST\s*\(|TRY_CONVERT\s*\(|NEWID\s*\(|SCOPE_IDENTITY\s*\(|OUTPUT\s+INSERTED\b|MERGE\s+INTO\b|TOP\s+\d+\b)|@@(?:ROWCOUNT|IDENTITY)\b/i;
 
 function isWordStart(ch: string | undefined): boolean {
   return !!ch && /[A-Za-z_]/.test(ch);
@@ -629,7 +631,12 @@ export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
       hint: 'Open a writable local database file before running a write query.',
     };
   }
-  if (normalized.includes('disk image is malformed') || normalized.includes('file is not a database')) {
+  if (
+    normalized.includes('disk image is malformed') ||
+    normalized.includes('file is not a database') ||
+    normalized.includes('database is corrupt') ||
+    normalized.includes('database corruption')
+  ) {
     return {
       title: 'Database file is corrupt',
       message: raw,

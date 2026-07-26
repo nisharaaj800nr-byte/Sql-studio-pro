@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -18,6 +18,7 @@ import { useDatabases } from '@/contexts/DatabaseContext';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { getSQLiteCapabilitiesStandalone, type SQLiteCapabilities } from '@/utils/sqliteManager';
 
 function SectionHeader({ title }: { title: string }) {
   const colors = useColors();
@@ -90,6 +91,13 @@ export default function SettingsScreen() {
   const { queryHistory, savedQueries, clearHistory } = useEditor();
   const { databases } = useDatabases();
   const { settings, updateSetting, resetSettings } = useSettings();
+  const [sqliteCaps, setSqliteCaps] = useState<SQLiteCapabilities | null>(null);
+
+  useEffect(() => {
+    getSQLiteCapabilitiesStandalone()
+      .then(setSqliteCaps)
+      .catch(() => setSqliteCaps(null));
+  }, []);
 
   const handleClearHistory = () => {
     Alert.alert('Clear History', `Delete all ${queryHistory.length} history entries?`, [
@@ -411,8 +419,37 @@ export default function SettingsScreen() {
           <SettingRow
             iconSet="community"
             icon="database"
-            label="Powered by expo-sqlite"
-            description="Native SQLite on iOS & Android"
+            label="SQLite Engine"
+            description={sqliteCaps ? `v${sqliteCaps.version} · expo-sqlite (native)` : 'Loading…'}
+            onPress={sqliteCaps ? () => {
+              const caps = [
+                sqliteCaps.supportsWindowFunctions && 'Window functions',
+                sqliteCaps.supportsJsonFunctions && 'JSON functions',
+                sqliteCaps.supportsMathFunctions && 'Math functions',
+                sqliteCaps.supportsReturning && 'RETURNING clause',
+                sqliteCaps.supportsGeneratedColumns && 'Generated columns',
+                sqliteCaps.supportsStrictTables && 'STRICT tables',
+              ].filter(Boolean).join('\n');
+              const compOpts = sqliteCaps.compileOptions.slice(0, 20).join('\n');
+              Alert.alert(
+                `SQLite ${sqliteCaps.version}`,
+                `Supported features:\n${caps || 'Basic SQLite only'}\n\nCompile options (first 20):\n${compOpts || 'Not available'}`,
+                [{ text: 'OK' }]
+              );
+            } : undefined}
+          />
+          <Separator />
+          <SettingRow
+            iconSet="community"
+            icon="check-circle"
+            label="Engine Capabilities"
+            description={sqliteCaps ? [
+              sqliteCaps.supportsWindowFunctions ? '✓ Window' : '✗ Window',
+              sqliteCaps.supportsJsonFunctions ? '✓ JSON' : '✗ JSON',
+              sqliteCaps.supportsMathFunctions ? '✓ Math' : '✗ Math',
+              sqliteCaps.supportsReturning ? '✓ RETURNING' : '✗ RETURNING',
+              sqliteCaps.supportsStrictTables ? '✓ STRICT' : '✗ STRICT',
+            ].join(' · ') : 'Loading…'}
           />
           <Separator />
           <SettingRow
