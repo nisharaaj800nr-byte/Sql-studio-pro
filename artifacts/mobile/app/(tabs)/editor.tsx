@@ -179,9 +179,13 @@ function EditorInner() {
 
   const handleExplain = useCallback(async () => {
     if (!activeDbId) { handlePickDatabase(); return; }
-    const rows = await explainQueryPlan(activeDbId, currentSql);
-    setExplainRows(rows);
-    setShowExplain(true);
+    try {
+      const rows = await explainQueryPlan(activeDbId, currentSql);
+      setExplainRows(rows);
+      setShowExplain(true);
+    } catch {
+      // incomplete or invalid SQL — silently ignore
+    }
   }, [activeDbId, currentSql]);
 
   const handleBegin = async () => {

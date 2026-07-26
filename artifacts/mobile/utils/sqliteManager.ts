@@ -999,7 +999,7 @@ export interface ExplainRow {
 export async function explainQueryPlan(dbId: string, sql: string): Promise<ExplainRow[]> {
   try {
     const db = await openDb(dbId);
-    return db.getAllAsync<ExplainRow>(`EXPLAIN QUERY PLAN ${sql}`);
+    return await db.getAllAsync<ExplainRow>(`EXPLAIN QUERY PLAN ${sql}`);
   } catch {
     return [];
   }
