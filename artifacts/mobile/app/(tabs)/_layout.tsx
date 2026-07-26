@@ -1,79 +1,104 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-// Premium glow pill for selected tab
+// ── Premium tab icon with gradient active pill ───────────────────────────────
+
 function TabIcon({
   name,
   focused,
   color,
+  label,
 }: {
   name: IoniconName;
   focused: boolean;
   color: string;
+  label: string;
 }) {
+  if (focused) {
+    return (
+      <View style={pill.container}>
+        <LinearGradient
+          colors={['#4B7BFF', '#7C5CFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={pill.gradient}
+        >
+          <Ionicons name={name} size={20} color="#FFFFFF" />
+        </LinearGradient>
+        <View style={pill.dot} />
+      </View>
+    );
+  }
+
   return (
-    <View
-      style={[
-        focused ? pill.wrap : undefined,
-        focused ? { backgroundColor: color + '22' } : undefined,
-      ]}
-    >
+    <View style={pill.inactiveWrap}>
       <Ionicons name={name} size={22} color={color} />
-      {focused && (
-        <View style={[pill.dot, { backgroundColor: color }]} />
-      )}
     </View>
   );
 }
 
 const pill = StyleSheet.create({
-  wrap: {
-    minWidth: 44,
-    minHeight: 30,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+  container: {
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: -2,
+  },
+  gradient: {
+    width: 46,
+    height: 32,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
+    shadowColor: '#4B7BFF',
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   dot: {
-    position: 'absolute',
-    bottom: -6,
     width: 4,
     height: 4,
     borderRadius: 2,
+    backgroundColor: '#4B7BFF',
+  },
+  inactiveWrap: {
+    width: 46,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
+
+// ── Tab layout ───────────────────────────────────────────────────────────────
 
 export default function TabLayout() {
   const colors = useColors();
   const isDark = colors.isDark;
   const isIOS  = Platform.OS === 'ios';
 
-  // Premium dark tab bar colour
   const tabBg = isDark ? '#0D1117' : colors.card;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor:   isDark ? '#4F8DFF' : colors.primary,
+        tabBarActiveTintColor:   isDark ? '#4B7BFF' : colors.primary,
         tabBarInactiveTintColor: isDark ? '#4B5563' : colors.mutedForeground,
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: tabBg,
+          backgroundColor: isIOS && isDark ? 'transparent' : tabBg,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : colors.border,
           elevation: 0,
-          height: isIOS ? 78 : 64,
-          paddingBottom: isIOS ? 20 : 8,
+          height: isIOS ? 80 : 64,
+          paddingBottom: isIOS ? 22 : 8,
           paddingTop: 8,
         },
         tabBarBackground: () =>
@@ -81,18 +106,18 @@ export default function TabLayout() {
             <BlurView
               intensity={isDark ? 80 : 95}
               tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
+              style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(13,17,23,0.85)' : undefined }]}
             />
           ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: tabBg }]} />
           ),
         tabBarLabelStyle: {
-          fontSize: 9,
-          fontWeight: '700',
-          letterSpacing: 0.3,
-          marginTop: 2,
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.1,
+          marginTop: 0,
         },
-        tabBarIconStyle:    { marginBottom: -1 },
+        tabBarIconStyle:    { marginBottom: -2 },
         tabBarHideOnKeyboard: true,
       }}
     >
@@ -101,25 +126,40 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'home' : 'home-outline'}
+              focused={focused}
+              color={color}
+              label="Home"
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="databases"
         options={{
-          title: 'Databases',
+          title: 'Database',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'server' : 'server-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'server' : 'server-outline'}
+              focused={focused}
+              color={color}
+              label="Database"
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="editor"
         options={{
-          title: 'SQL Editor',
+          title: 'Editor',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'terminal' : 'terminal-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'terminal' : 'terminal-outline'}
+              focused={focused}
+              color={color}
+              label="Editor"
+            />
           ),
         }}
       />
@@ -128,7 +168,12 @@ export default function TabLayout() {
         options={{
           title: 'Code',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'code-slash' : 'code-slash-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'code-slash' : 'code-slash-outline'}
+              focused={focused}
+              color={color}
+              label="Code"
+            />
           ),
         }}
       />
@@ -137,7 +182,12 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'time' : 'time-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'time' : 'time-outline'}
+              focused={focused}
+              color={color}
+              label="History"
+            />
           ),
         }}
       />
@@ -146,7 +196,12 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} />
+            <TabIcon
+              name={focused ? 'settings' : 'settings-outline'}
+              focused={focused}
+              color={color}
+              label="Settings"
+            />
           ),
         }}
       />
