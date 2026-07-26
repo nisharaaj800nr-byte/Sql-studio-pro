@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "SQL Studio Pro – Editor"
+version = "1.0.0"
+id = "artifacts/sql-editor-ui"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22302
+
+[services.development]
+run = "pnpm --filter @workspace/sql-editor-ui run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sql-editor-ui", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sql-editor-ui/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22302"
+BASE_PATH = "/"

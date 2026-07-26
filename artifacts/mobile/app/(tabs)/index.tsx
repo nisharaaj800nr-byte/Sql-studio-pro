@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Platform,
@@ -7,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +20,8 @@ import { useDatabases } from '@/contexts/DatabaseContext';
 import { useEditor } from '@/contexts/EditorContext';
 import { useColors } from '@/hooks/useColors';
 import { formatNumber } from '@/utils/formatters';
+import { InputModal } from '@/components/InputModal';
+import { pickAndImportDatabase, copyImportedDb } from '@/utils/exportUtils';
 
 // ── Premium design tokens ───────────────────────────────────────────────────
 const P = {
@@ -45,42 +49,44 @@ function getGreeting() {
 }
 
 // ── Static data ─────────────────────────────────────────────────────────────
-const QUICK_ACTIONS = [
+type QuickActionKey = 'new-db' | 'run-sql' | 'history' | 'import-db' | 'db-explorer' | 'ai-help';
+
+const QUICK_ACTIONS: { key: QuickActionKey; label: string; sub: string; icon: any; bg: [string, string] }[] = [
   {
+    key: 'new-db',
     label: 'New Database', sub: 'Create new DB',
-    icon: 'server' as const,
-    bg: ['#1E3A8A', '#3B82F6'] as [string, string],
-    route: '/(tabs)/databases' as const,
+    icon: 'server',
+    bg: ['#1E3A8A', '#3B82F6'],
   },
   {
+    key: 'run-sql',
     label: 'Run SQL', sub: 'Execute query',
-    icon: 'play' as const,
-    bg: ['#14532D', '#22C55E'] as [string, string],
-    route: '/(tabs)/editor' as const,
+    icon: 'play',
+    bg: ['#14532D', '#22C55E'],
   },
   {
+    key: 'history',
     label: 'History', sub: 'Query history',
-    icon: 'time' as const,
-    bg: ['#3B0764', '#7C5CFF'] as [string, string],
-    route: '/(tabs)/history' as const,
+    icon: 'time',
+    bg: ['#3B0764', '#7C5CFF'],
   },
   {
+    key: 'import-db',
     label: 'Import DB', sub: 'From file',
-    icon: 'download-outline' as const,
-    bg: ['#78350F', '#F59E0B'] as [string, string],
-    route: '/(tabs)/databases' as const,
+    icon: 'download-outline',
+    bg: ['#78350F', '#F59E0B'],
   },
   {
+    key: 'db-explorer',
     label: 'DB Explorer', sub: 'Browse data',
-    icon: 'layers-outline' as const,
-    bg: ['#164E63', '#06B6D4'] as [string, string],
-    route: '/(tabs)/databases' as const,
+    icon: 'layers-outline',
+    bg: ['#164E63', '#06B6D4'],
   },
   {
+    key: 'ai-help',
     label: 'AI Help', sub: 'Ask AI assistant',
-    icon: 'sparkles' as const,
-    bg: ['#831843', '#EC4899'] as [string, string],
-    route: '/ai' as const,
+    icon: 'sparkles',
+    bg: ['#831843', '#EC4899'],
   },
 ];
 
@@ -120,9 +126,18 @@ export default function DashboardScreen() {
   const colors  = useColors();
   const insets  = useSafeAreaInsets();
   const isDark  = colors.isDark;
-  const { databases, isLoading, setActiveDbId } = useDatabases();
+  const { databases, isLoading, setActiveDbId, activeDbId, createDatabase } = useDatabases();
   const { queryHistory, totalQueriesRun, savedQueries, setCurrentSql } = useEditor();
   const [totalTables, setTotalTables] = React.useState(0);
+
+  // ── Search state ──
+  const [showSearch, setShowSearch]   = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // ── Import state ──
+  const [importing,       setImporting]       = useState(false);
+  const [pendingImport,   setPendingImport]   = useState<{ uri: string; suggestedName: string } | null>(null);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   // ── Animations ──
   const heroAnim    = useRef(new Animated.Value(0)).current;
@@ -164,13 +179,85 @@ export default function DashboardScreen() {
     return () => { cancelled = true; };
   }, [databases]);
 
-  const recentDBs = databases.slice(0, 3);
-
   const handleTemplate = (sql: string) => {
     setCurrentSql(sql);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(tabs)/editor');
   };
+
+  // ── Import DB flow ────────────────────────────────────────────────────────
+  const handleImportDB = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setImporting(true);
+    try {
+      const result = await pickAndImportDatabase();
+      if (!result.success) { setImporting(false); return; }
+      const raw = result.filename ?? 'imported';
+      const suggested = raw.replace(/\.(db|sqlite3?|s3db)$/i, '').replace(/[_-]/g, ' ');
+      setPendingImport({ uri: result.uri!, suggestedName: suggested });
+      setImportModalVisible(true);
+    } catch (e) {
+      Alert.alert('Import Failed', (e as Error).message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportConfirm = async (name: string) => {
+    setImportModalVisible(false);
+    if (!pendingImport) return;
+    try {
+      const db = await createDatabase(name);
+      await copyImportedDb(pendingImport.uri, db.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Imported!', `"${name}" imported successfully.`, [
+        { text: 'Open', onPress: () => router.push(`/database/${db.id}`) },
+        { text: 'OK' },
+      ]);
+    } catch (e) {
+      Alert.alert('Import Failed', (e as Error).message);
+    } finally {
+      setPendingImport(null);
+    }
+  };
+
+  // ── Quick action dispatcher ───────────────────────────────────────────────
+  const handleQuickAction = (key: QuickActionKey) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    switch (key) {
+      case 'new-db':
+        router.push('/(tabs)/databases');
+        break;
+      case 'run-sql':
+        router.push('/(tabs)/editor');
+        break;
+      case 'history':
+        router.push('/(tabs)/history');
+        break;
+      case 'import-db':
+        handleImportDB();
+        break;
+      case 'db-explorer':
+        if (databases.length > 0) {
+          const target = databases.find(d => d.id === activeDbId) ?? databases[0];
+          setActiveDbId(target.id);
+          router.push(`/database/${target.id}`);
+        } else {
+          router.push('/(tabs)/databases');
+        }
+        break;
+      case 'ai-help':
+        router.push('/ai');
+        break;
+    }
+  };
+
+  // ── Search filtering for recent DBs ──────────────────────────────────────
+  const filteredDBs = searchQuery.trim()
+    ? databases.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : databases;
+
+  const recentDBs = (showSearch && searchQuery.trim() ? filteredDBs : databases).slice(0, 3);
 
   // Interpolations
   const heroY    = heroAnim.interpolate({ inputRange: [0,1], outputRange: [24, 0] });
@@ -194,7 +281,7 @@ export default function DashboardScreen() {
         <View style={s.header}>
           <View style={s.headerLeft}>
             <Pressable
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/settings'); }}
               style={[s.menuBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.card }]}
               hitSlop={8}
             >
@@ -232,11 +319,11 @@ export default function DashboardScreen() {
 
             {/* Search */}
             <Pressable
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              style={[s.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.card }]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }}
+              style={[s.iconBtn, { backgroundColor: showSearch ? (isDark ? P.primary + '33' : colors.primarySubtle) : (isDark ? 'rgba(255,255,255,0.07)' : colors.card) }]}
               hitSlop={8}
             >
-              <Ionicons name="search-outline" size={17} color={isDark ? P.text : colors.foreground} />
+              <Ionicons name={showSearch ? 'close' : 'search-outline'} size={17} color={showSearch ? P.primary : (isDark ? P.text : colors.foreground)} />
             </Pressable>
 
             {/* Avatar */}
@@ -245,6 +332,29 @@ export default function DashboardScreen() {
             </LinearGradient>
           </View>
         </View>
+
+        {/* ── SEARCH BAR ─────────────────────────────────────────── */}
+        {showSearch && (
+          <Animated.View style={{ opacity: heroAnim, marginBottom: 14 }}>
+            <View style={[s.searchBar, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
+              <Ionicons name="search-outline" size={16} color={isDark ? P.textMuted : colors.mutedForeground} />
+              <TextInput
+                autoFocus
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search databases..."
+                placeholderTextColor={isDark ? P.textMuted : colors.mutedForeground}
+                style={[s.searchInput, { color: isDark ? P.text : colors.foreground }]}
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')} hitSlop={10}>
+                  <Ionicons name="close-circle" size={16} color={isDark ? P.textMuted : colors.mutedForeground} />
+                </Pressable>
+              )}
+            </View>
+          </Animated.View>
+        )}
 
         {/* ── HERO CARD ──────────────────────────────────────────── */}
         <Animated.View style={{ opacity: heroAnim, transform: [{ translateY: heroY }], marginBottom: 14 }}>
@@ -331,19 +441,20 @@ export default function DashboardScreen() {
             isDark={isDark}
             primaryColor={isDark ? P.primary : colors.primary}
             textColor={isDark ? P.text : colors.foreground}
-            onSeeAll={() => {}}
+            onSeeAll={() => router.push('/(tabs)/databases')}
           />
           <View style={s.actionsGrid}>
             {QUICK_ACTIONS.map((a) => (
               <Pressable
-                key={a.label}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(a.route); }}
+                key={a.key}
+                onPress={() => handleQuickAction(a.key)}
+                disabled={importing && a.key === 'import-db'}
                 style={({ pressed }) => [
                   s.actionCard,
                   {
                     backgroundColor: isDark ? P.card : colors.card,
                     borderColor: isDark ? P.cardBorder : colors.border,
-                    opacity: pressed ? 0.82 : 1,
+                    opacity: (importing && a.key === 'import-db') ? 0.5 : pressed ? 0.82 : 1,
                     transform: [{ scale: pressed ? 0.95 : 1 }],
                   },
                 ]}
@@ -416,7 +527,7 @@ export default function DashboardScreen() {
             isDark={isDark}
             primaryColor={isDark ? P.primary : colors.primary}
             textColor={isDark ? P.text : colors.foreground}
-            onSeeAll={() => {}}
+            onSeeAll={() => router.push('/(tabs)/editor')}
           />
           <View style={[s.listCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
             {SQL_TEMPLATES.map((t, i) => (
@@ -464,6 +575,18 @@ export default function DashboardScreen() {
           </LinearGradient>
         </Pressable>
       </Animated.View>
+
+      {/* ── IMPORT MODAL ──────────────────────────────────────────── */}
+      <InputModal
+        visible={importModalVisible}
+        title="Name this Database"
+        message={`Importing: ${pendingImport?.suggestedName ?? 'database'}`}
+        placeholder="Database name"
+        defaultValue={pendingImport?.suggestedName ?? ''}
+        confirmLabel="Import"
+        onConfirm={handleImportConfirm}
+        onCancel={() => { setImportModalVisible(false); setPendingImport(null); }}
+      />
     </View>
   );
 }
@@ -557,6 +680,10 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
   seeAllBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2 },
   seeAll:       { fontSize: 13, fontWeight: '600' },
+
+  // Search bar
+  searchBar:   { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14 },
+  searchInput: { flex: 1, fontSize: 14 },
 
   // Quick actions 2×3 grid
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
