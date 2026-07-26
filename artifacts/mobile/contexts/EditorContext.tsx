@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { executeQuery as execSql, QueryResult, DatabaseCorruptError } from '@/utils/sqliteManager';
+import { formatSQLiteError } from '@/utils/sqlDiagnostics';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export interface QueryHistoryEntry {
@@ -87,8 +88,9 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     const timeoutMs = settings.queryTimeoutMs;
     let timedOut = false;
 
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<QueryResult>((_, reject) => {
-      setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         timedOut = true;
         reject(new Error(`Query timed out after ${timeoutMs / 1000}s`));
       }, timeoutMs);
@@ -98,20 +100,22 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     try {
       // Task 1.6: pass maxRows so the DB caps the fetch at the source,
       // not after loading potentially millions of rows into JS memory.
-      result = await Promise.race([
-        execSql(dbId, trimmedSql, settings.rowLimit),
-        timeoutPromise,
-      ]);
+      result = await Promise.race([execSql(dbId, trimmedSql, settings.rowLimit), timeoutPromise]);
     } catch (e) {
       if (e instanceof DatabaseCorruptError) throw e; // let DatabaseErrorBoundary handle it
+      const details = formatSQLiteError(e);
       result = {
         columns: [],
         rows: [],
         rowsAffected: 0,
         executionTime: timeoutMs,
-        error: (e as Error).message,
+        error: details.message,
+        errorTitle: details.title,
+        errorHint: details.hint,
         type: 'error',
       };
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
 
     setQueryResult(result);
@@ -128,7 +132,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         databaseName: dbName,
         timestamp: new Date().toISOString(),
         success: !result.error,
-        rowCount: result.rows.length,
+        rowCount: result.rows.length || result.rowsAffected,
         executionTime: result.executionTime,
         error: result.error,
       };

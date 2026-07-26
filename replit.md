@@ -8,6 +8,7 @@ A professional SQL Database Management IDE — mobile app (Expo/React Native) wi
 - `pnpm --filter @workspace/mobile run dev` — run the Expo mobile app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
+- `pnpm run test:sqlite` — regression tests for SQLite SQL classification, statement splitting, and editor warnings
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only, requires DATABASE_URL)
 - Optional env: `DATABASE_URL` — Postgres connection string (API server starts without it; only needed for remote-connection syncing)

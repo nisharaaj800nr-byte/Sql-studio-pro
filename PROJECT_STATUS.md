@@ -9,7 +9,7 @@
 ```
 Phase 1 — Core Stability         ██████████  100%  (7/7)
 Phase 2 — Professional Features  ██████████  100%  (20/20)
-Phase 3 — Multi-Language Support ░░░░░░░░░░   0%
+Phase 3 — Multi-Language Support ░░░░░░░░░░   0%  (SQLite polish in progress)
 Phase 4 — Cloud & AI             ░░░░░░░░░░   0%
 
 Total: 27 / 50 tasks complete
@@ -78,7 +78,7 @@ Total: 27 / 50 tasks complete
 
 | # | Language | Features Needed | Status |
 |---|----------|-----------------|--------|
-| 3.1 | **SQLite** | Already working — polish karo | 🟡 In Progress |
+| 3.1 | **SQLite** | Complete local execution, diagnostics, and device support | 🟡 In Progress |
 | 3.2 | **HTML** | Live preview + DOM inspector | ⬜ Todo |
 | 3.3 | **CSS** | Live preview + color picker + variables | ⬜ Todo |
 | 3.4 | **JavaScript** | In-app JS runtime + console output | ⬜ Todo |

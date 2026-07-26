@@ -304,6 +304,7 @@ function EditorInner() {
           onRun={handleRun}
           isExecuting={isExecuting}
           databaseName={activeDb?.name}
+          databaseId={activeDbId}
           databaseColor={activeDb?.color}
         />
       </View>

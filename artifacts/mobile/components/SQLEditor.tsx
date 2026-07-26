@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,6 +13,8 @@ import { useColors } from '@/hooks/useColors';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { formatSQL } from '@/utils/sqlHighlight';
+import { getSQLSuggestions, getStaticSQLDiagnostics, type SQLDiagnostic } from '@/utils/sqlDiagnostics';
+import { getSQLCompletionItems } from '@/utils/sqliteManager';
 import * as Haptics from 'expo-haptics';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -46,6 +48,7 @@ interface SQLEditorProps {
   onRun: () => void;
   isExecuting?: boolean;
   databaseName?: string;
+  databaseId?: string | null;
   databaseColor?: string;
 }
 
@@ -55,6 +58,7 @@ export function SQLEditor({
   onRun,
   isExecuting = false,
   databaseName,
+  databaseId,
   databaseColor,
 }: SQLEditorProps) {
   const colors = useColors();
@@ -63,6 +67,39 @@ export function SQLEditor({
   const lineCount = value.split('\n').length;
   const fontSize = settings.fontSize;
   const lineHeight = Math.round(fontSize * 1.6);
+  const diagnostics = getStaticSQLDiagnostics(value);
+  const currentWord = value.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';
+  const [schemaSuggestions, setSchemaSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!settings.autoComplete || !databaseId) {
+      setSchemaSuggestions([]);
+      return;
+    }
+    getSQLCompletionItems(databaseId)
+      .then(items => {
+        if (cancelled) return;
+        setSchemaSuggestions([
+          ...items.tables,
+          ...items.views,
+          ...items.columns,
+          ...items.indexes,
+          ...items.triggers,
+        ]);
+      })
+      .catch(() => {
+        if (!cancelled) setSchemaSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [databaseId, settings.autoComplete]);
+  const suggestions = settings.autoComplete
+    ? Array.from(new Set([
+      ...getSQLSuggestions(currentWord),
+      ...schemaSuggestions.filter(item => item.toUpperCase().startsWith(currentWord.toUpperCase())),
+    ])).slice(0, 10)
+    : [];
 
   const handleFormat = () => {
     const formatted = formatSQL(value);
@@ -179,6 +216,46 @@ export function SQLEditor({
         </ScrollView>
       </View>
 
+      {(diagnostics.length > 0 || suggestions.length > 0) && (
+        <View style={[styles.assistPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          {diagnostics.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.diagnosticContent}
+              keyboardShouldPersistTaps="always"
+            >
+              {diagnostics.map((item, index) => (
+                <DiagnosticChip key={`${item.code}-${index}`} item={item} colors={colors} />
+              ))}
+            </ScrollView>
+          )}
+          {suggestions.length > 0 && currentWord.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionContent}
+              keyboardShouldPersistTaps="always"
+            >
+              <Text style={[styles.assistLabel, { color: colors.mutedForeground }]}>Suggest</Text>
+              {suggestions.map(suggestion => (
+                <Pressable
+                  key={suggestion}
+                  onPress={() => {
+                    onChange(value.slice(0, value.length - currentWord.length) + suggestion + ' ');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    inputRef.current?.focus();
+                  }}
+                  style={[styles.suggestionChip, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  <Text style={[styles.suggestionText, { color: colors.sqlKeyword }]}>{suggestion}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
       {/* Snippet keyboard bar */}
       <ScrollView
         horizontal
@@ -203,6 +280,32 @@ export function SQLEditor({
           </Pressable>
         ))}
       </ScrollView>
+    </View>
+  );
+}
+
+function DiagnosticChip({
+  item,
+  colors,
+}: {
+  item: SQLDiagnostic;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const color = item.severity === 'error'
+    ? colors.destructive
+    : item.severity === 'warning'
+      ? colors.sqlString
+      : colors.mutedForeground;
+  return (
+    <View style={[styles.diagnosticChip, { borderColor: color + '88', backgroundColor: color + '18' }]}>
+      <MaterialIcons
+        name={item.severity === 'error' ? 'error-outline' : item.severity === 'warning' ? 'warning-amber' : 'info-outline'}
+        size={14}
+        color={color}
+      />
+      <Text style={[styles.diagnosticText, { color }]} numberOfLines={1}>
+        Ln {item.line}:{item.column} · {item.message}
+      </Text>
     </View>
   );
 }
@@ -284,4 +387,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  assistPanel: { borderTopWidth: 1, maxHeight: 88 },
+  diagnosticContent: { paddingHorizontal: 8, paddingVertical: 5, gap: 6 },
+  diagnosticChip: {
+    maxWidth: 330,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  diagnosticText: { fontSize: 11, maxWidth: 290 },
+  suggestionContent: { paddingHorizontal: 8, paddingBottom: 5, gap: 5, alignItems: 'center' },
+  assistLabel: { fontSize: 11, marginRight: 2 },
+  suggestionChip: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
+  suggestionText: { fontSize: 11, fontFamily: MONO_FONT },
 });

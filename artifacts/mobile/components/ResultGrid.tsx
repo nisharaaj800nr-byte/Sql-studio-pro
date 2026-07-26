@@ -40,24 +40,42 @@ export function ResultGrid({ result, onExport }: ResultGridProps) {
       <View style={[styles.statusContainer, { backgroundColor: colors.destructive + '15', borderColor: colors.destructive }]}>
         <MaterialIcons name="error-outline" size={22} color={colors.destructive} />
         <View style={styles.statusContent}>
-          <Text style={[styles.statusTitle, { color: colors.destructive }]}>Query Error</Text>
+          <Text style={[styles.statusTitle, { color: colors.destructive }]}>
+            {result.errorTitle ?? 'Query Error'}
+          </Text>
           <Text style={[styles.statusMsg, { color: colors.destructive, opacity: 0.85, fontFamily: MONO_FONT, fontSize: 12 }]}>
             {result.error}
           </Text>
+          {result.errorHint && (
+            <Text style={[styles.statusHint, { color: colors.mutedForeground }]}>
+              Hint: {result.errorHint}
+            </Text>
+          )}
         </View>
       </View>
     );
   }
 
-  if (result.type === 'dml' || result.type === 'ddl') {
+  const hasRows = result.rows.length > 0 || result.columns.length > 0;
+
+  if (!hasRows && (
+    result.type === 'dml' ||
+    result.type === 'ddl' ||
+    result.type === 'pragma' ||
+    result.type === 'transaction' ||
+    result.type === 'maintenance'
+  )) {
     return (
       <View style={[styles.statusContainer, { backgroundColor: colors.accent + '15', borderColor: colors.accent }]}>
         <MaterialIcons name="check-circle-outline" size={22} color={colors.accent} />
         <View style={styles.statusContent}>
-          <Text style={[styles.statusTitle, { color: colors.accent }]}>Query Successful</Text>
+          <Text style={[styles.statusTitle, { color: colors.accent }]}>
+            {result.type === 'transaction' ? 'Transaction Updated' : result.type === 'maintenance' ? 'Maintenance Complete' : 'Query Successful'}
+          </Text>
           <Text style={[styles.statusMsg, { color: colors.mutedForeground }]}>
             {result.rowsAffected} row{result.rowsAffected !== 1 ? 's' : ''} affected
             {result.insertId ? ` · Last insert ID: ${result.insertId}` : ''}
+            {result.statementCount && result.statementCount > 1 ? ` · ${result.statementCount} statements` : ''}
             {' · '}{formatDuration(result.executionTime)}
           </Text>
         </View>
@@ -136,7 +154,7 @@ export function ResultGrid({ result, onExport }: ResultGridProps) {
       <View style={[styles.metaBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <MaterialIcons name="table-chart" size={14} color={colors.mutedForeground} />
         <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-          {result.rows.length} row{result.rows.length !== 1 ? 's' : ''} · {result.columns.length} col
+          {result.rows.length}{result.truncated ? '+' : ''} row{result.rows.length !== 1 ? 's' : ''} · {result.columns.length} col
           {result.columns.length !== 1 ? 's' : ''} · {formatDuration(result.executionTime)}
         </Text>
         {onExport && (
@@ -202,6 +220,7 @@ const styles = StyleSheet.create({
   statusContent: { flex: 1, gap: 4 },
   statusTitle: { fontSize: 14, fontWeight: '700' },
   statusMsg: { fontSize: 13, lineHeight: 20 },
+  statusHint: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   emptyResult: {
     flex: 1,
     alignItems: 'center',

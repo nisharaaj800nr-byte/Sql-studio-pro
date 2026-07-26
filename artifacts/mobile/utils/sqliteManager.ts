@@ -1,5 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
+import {
+  classifySQL,
+  formatSQLiteError,
+  isDestructiveSQLText,
+  splitSQLStatements,
+  statementReturnsRows,
+  type SQLStatementKind,
+} from './sqlDiagnostics';
 
 export interface QueryResult {
   columns: string[];
@@ -8,7 +16,11 @@ export interface QueryResult {
   insertId?: number;
   executionTime: number;
   error?: string;
-  type: 'select' | 'dml' | 'ddl' | 'error';
+  errorTitle?: string;
+  errorHint?: string;
+  type: 'select' | 'dml' | 'ddl' | 'pragma' | 'transaction' | 'explain' | 'maintenance' | 'error';
+  statementCount?: number;
+  statementKinds?: SQLStatementKind[];
   /** true when the result was clipped to maxRows — more rows exist in DB */
   truncated?: boolean;
 }
@@ -83,48 +95,17 @@ function isCorruptionError(e: unknown): boolean {
   return CORRUPT_PATTERNS.some(p => msg.includes(p));
 }
 
-// ─── READ-ONLY keyword set ───────────────────────────────────────────────────
-
-/**
- * READ-ONLY keywords: queries that return rows and must use getAllAsync.
- * Everything else (INSERT/UPDATE/DELETE/CREATE/DROP…) uses runAsync.
- */
-const READ_ONLY_KEYWORDS = new Set([
-  'SELECT', 'WITH', 'EXPLAIN', 'PRAGMA', 'SHOW', 'VALUES',
-]);
-
-/**
- * Strip leading SQL comments and whitespace, then check the first keyword.
- * Handles:
- *   -- single-line comments
- *   /* multi-line block comments *\/
- *   mixed leading whitespace
- * This avoids false negatives like "-- get users\nSELECT ..." being
- * classified as a DML statement.
- */
-function isSelectStatement(sql: string): boolean {
-  let s = sql;
-
-  // Repeatedly strip leading whitespace and comments until the real SQL starts
-  while (true) {
-    s = s.trimStart();
-    if (s.startsWith('--')) {
-      // single-line comment: skip to end of line
-      const nl = s.indexOf('\n');
-      s = nl === -1 ? '' : s.slice(nl + 1);
-    } else if (s.startsWith('/*')) {
-      // block comment: skip to closing */
-      const end = s.indexOf('*/');
-      s = end === -1 ? '' : s.slice(end + 2);
-    } else {
-      break;
-    }
-  }
-
-  // Extract the first word (the SQL verb)
-  const match = s.match(/^([A-Za-z_]+)/);
-  if (!match) return false;
-  return READ_ONLY_KEYWORDS.has(match[1].toUpperCase());
+function resultTypeForKind(
+  kind: SQLStatementKind,
+): Exclude<QueryResult['type'], 'error' | 'select'> | 'select' {
+  if (kind === 'select') return 'select';
+  if (kind === 'dml') return 'dml';
+  if (kind === 'ddl') return 'ddl';
+  if (kind === 'pragma') return 'pragma';
+  if (kind === 'transaction') return 'transaction';
+  if (kind === 'explain') return 'explain';
+  if (kind === 'maintenance') return 'maintenance';
+  return 'ddl';
 }
 
 /**
@@ -141,41 +122,61 @@ export async function executeQuery(
   const start = Date.now();
   try {
     const db = await openDb(dbId);
-
-    if (isSelectStatement(sql)) {
-      // Task 1.6: cap rows at the DB level so we never load millions into memory.
-      // We fetch maxRows+1; if we get that many we know the result was truncated.
-      let querySql = sql;
-      let cap: number | undefined;
-      if (maxRows && maxRows > 0 && !/\bLIMIT\b/i.test(sql)) {
-        cap = maxRows;
-        querySql = `${sql.trimEnd().replace(/;$/, '')} LIMIT ${maxRows + 1}`;
-      }
-
-      const allRows = await db.getAllAsync<Record<string, unknown>>(querySql);
-      const truncated = cap !== undefined && allRows.length > cap;
-      const rows = truncated ? allRows.slice(0, cap) : allRows;
-      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-
-      return {
-        columns,
-        rows,
-        rowsAffected: 0,
-        executionTime: Date.now() - start,
-        type: 'select',
-        truncated,
-      };
-    } else {
-      const result = await db.runAsync(sql);
+    const statements = splitSQLStatements(sql);
+    if (statements.length === 0) {
       return {
         columns: [],
         rows: [],
-        rowsAffected: result.changes,
-        insertId: result.lastInsertRowId ?? undefined,
+        rowsAffected: 0,
         executionTime: Date.now() - start,
-        type: 'dml',
+        error: 'Enter a SQLite statement to run.',
+        type: 'error',
       };
     }
+
+    let finalColumns: string[] = [];
+    let finalRows: Record<string, unknown>[] = [];
+    let finalType: QueryResult['type'] = 'ddl';
+    let finalInsertId: number | undefined;
+    let truncated = false;
+    let rowsAffected = 0;
+    const statementKinds: SQLStatementKind[] = [];
+
+    for (const statement of statements) {
+      const kind = classifySQL(statement);
+      statementKinds.push(kind);
+      if (kind === 'ddl') invalidateCompletionCache(dbId);
+      const returnsRows = statementReturnsRows(statement, kind);
+      const cap = maxRows && maxRows > 0 && (kind === 'select' || kind === 'explain') &&
+        !/\bLIMIT\b/i.test(statement) ? maxRows : undefined;
+      const querySql = cap
+        ? `${statement.trim().replace(/;$/, '')} LIMIT ${cap + 1}`
+        : statement;
+
+      if (returnsRows) {
+        const allRows = await db.getAllAsync<Record<string, unknown>>(querySql);
+        truncated = truncated || (cap !== undefined && allRows.length > cap);
+        finalRows = cap !== undefined && allRows.length > cap ? allRows.slice(0, cap) : allRows;
+        finalColumns = finalRows.length > 0 ? Object.keys(finalRows[0]) : [];
+      } else {
+        const result = await db.runAsync(statement);
+        rowsAffected += result.changes;
+        finalInsertId = result.lastInsertRowId ?? finalInsertId;
+      }
+      finalType = resultTypeForKind(kind);
+    }
+
+    return {
+      columns: finalColumns,
+      rows: finalRows,
+      rowsAffected,
+      insertId: finalInsertId,
+      executionTime: Date.now() - start,
+      type: finalType,
+      statementCount: statements.length,
+      statementKinds,
+      truncated: truncated || undefined,
+    };
   } catch (e) {
     // Re-throw corruption errors so callers can offer targeted recovery.
     if (e instanceof DatabaseCorruptError) throw e;
@@ -185,34 +186,58 @@ export async function executeQuery(
       rows: [],
       rowsAffected: 0,
       executionTime: Date.now() - start,
-      error: (e as Error).message,
+      error: formatSQLiteError(e).message,
+      errorTitle: formatSQLiteError(e).title,
+      errorHint: formatSQLiteError(e).hint,
       type: 'error',
+      statementCount: splitSQLStatements(sql).length,
     };
   }
 }
 
+export interface SQLCompletionItems {
+  tables: string[];
+  views: string[];
+  columns: string[];
+  indexes: string[];
+  triggers: string[];
+}
+
+const completionCache: Record<string, SQLCompletionItems> = {};
+
+export async function getSQLCompletionItems(dbId: string): Promise<SQLCompletionItems> {
+  if (completionCache[dbId]) return completionCache[dbId];
+  const db = await openDb(dbId);
+  const objects = await db.getAllAsync<{ name: string; type: string }>(
+    `SELECT name, type FROM sqlite_master
+     WHERE type IN ('table', 'view', 'index', 'trigger')
+       AND name NOT LIKE 'sqlite_%'
+     ORDER BY name`,
+  );
+  const tables = objects.filter(item => item.type === 'table').map(item => item.name);
+  const views = objects.filter(item => item.type === 'view').map(item => item.name);
+  const indexes = objects.filter(item => item.type === 'index').map(item => item.name);
+  const triggers = objects.filter(item => item.type === 'trigger').map(item => item.name);
+  const columnSets = await Promise.all(
+    [...tables, ...views].map(async name => {
+      try {
+        return await db.getAllAsync<{ name: string }>(`PRAGMA table_info("${escapeIdentifier(name)}")`);
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const columns = Array.from(new Set(columnSets.flat().map(item => item.name))).sort();
+  completionCache[dbId] = { tables, views, columns, indexes, triggers };
+  return completionCache[dbId];
+}
+
+function invalidateCompletionCache(dbId: string): void {
+  delete completionCache[dbId];
+}
+
 export async function executeMultipleStatements(dbId: string, sql: string): Promise<QueryResult> {
-  const start = Date.now();
-  try {
-    const db = await openDb(dbId);
-    await db.execAsync(sql);
-    return {
-      columns: [],
-      rows: [],
-      rowsAffected: 0,
-      executionTime: Date.now() - start,
-      type: 'ddl',
-    };
-  } catch (e) {
-    return {
-      columns: [],
-      rows: [],
-      rowsAffected: 0,
-      executionTime: Date.now() - start,
-      error: (e as Error).message,
-      type: 'error',
-    };
-  }
+  return executeQuery(dbId, sql);
 }
 
 export async function getTables(dbId: string): Promise<TableInfo[]> {
@@ -293,6 +318,7 @@ export async function closeDatabase(dbId: string): Promise<void> {
     await dbCache[dbId].closeAsync();
     delete dbCache[dbId];
   }
+  invalidateCompletionCache(dbId);
 }
 
 export async function getDatabaseStats(dbId: string): Promise<{ pageSize: number; pageCount: number; sizeBytes: number }> {
@@ -595,12 +621,55 @@ export async function importCSVToTable(
 /** Execute raw SQL statements (for SQL file import). */
 export async function importSQLFile(dbId: string, sql: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const db = await openDb(dbId);
-    await db.execAsync(sql);
+    const result = await executeQuery(dbId, sql);
+    if (result.error) return { ok: false, error: result.error };
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    return { ok: false, error: formatSQLiteError(e).message };
   }
+}
+
+export interface SQLiteCapabilities {
+  version: string;
+  compileOptions: string[];
+  supportsReturning: boolean;
+  supportsWindowFunctions: boolean;
+  supportsJsonFunctions: boolean;
+  supportsStrictTables: boolean;
+}
+
+/**
+ * Reports the capabilities of the SQLite engine actually running on this
+ * device. SQLite features vary by OS/runtime build, so UI should use this
+ * rather than claiming every optional extension is always available.
+ */
+export async function getSQLiteCapabilities(dbId: string): Promise<SQLiteCapabilities> {
+  const db = await openDb(dbId);
+  const versionRows = await db.getAllAsync<{ version: string }>('SELECT sqlite_version() AS version');
+  let compileOptions: string[] = [];
+  try {
+    const rows = await db.getAllAsync<{ compile_options: string }>('PRAGMA compile_options');
+    compileOptions = rows.map(row => row.compile_options);
+  } catch {
+    // Some SQLite builds omit compile_options; the core version remains useful.
+  }
+  const version = versionRows[0]?.version ?? 'unknown';
+  const numericVersion = version.split('.').map(part => Number(part) || 0);
+  const atLeast = (major: number, minor: number, patch: number) =>
+    numericVersion[0] > major ||
+    (numericVersion[0] === major && (
+      numericVersion[1] > minor ||
+      (numericVersion[1] === minor && numericVersion[2] >= patch)
+    ));
+
+  return {
+    version,
+    compileOptions,
+    supportsReturning: atLeast(3, 35, 0),
+    supportsWindowFunctions: atLeast(3, 25, 0),
+    supportsJsonFunctions: !compileOptions.some(option => option === 'OMIT_JSON'),
+    supportsStrictTables: atLeast(3, 37, 0),
+  };
 }
 
 // ─── Task 2.14/2.16: Schema + Foreign Keys ──────────────────────────────────
@@ -683,18 +752,12 @@ export async function explainQueryPlan(dbId: string, sql: string): Promise<Expla
 
 // ─── Task 2.20: Detect destructive SQL ──────────────────────────────────────
 
-const DESTRUCTIVE_KEYWORDS = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER'];
-
 /**
  * Returns true when the SQL contains a destructive statement that warrants
  * an automatic backup before execution.
  */
 export function isDestructiveSQL(sql: string): boolean {
-  const upper = sql.toUpperCase();
-  return DESTRUCTIVE_KEYWORDS.some(kw => {
-    const re = new RegExp(`\\b${kw}\\b`);
-    return re.test(upper);
-  });
+  return isDestructiveSQLText(sql);
 }
 
 export async function exportDatabaseToSQL(dbId: string): Promise<string> {

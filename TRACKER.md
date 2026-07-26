@@ -57,7 +57,7 @@
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Next: Phase 3 — Multi-Language Support (HTML, CSS, JS, Python, etc.)_
+_In Progress: Phase 3.1 — SQLite polish (complete local query execution, diagnostics, and device support)_
 
 ---
 
@@ -106,6 +106,18 @@ _Next: Phase 3 — Multi-Language Support (HTML, CSS, JS, Python, etc.)_
 - `app/(tabs)/editor.tsx` — multi-tab, export, transaction bar, explain plan, auto-backup, keyboard shortcuts, saved queries
 - `app/database/[id]/table/[name].tsx` — row CRUD, sort bar, import, BLOB detection, export
 - `app/database/[id]/index.tsx` — CreateTableModal (column definitions), ER tab
+
+### 🔄 Phase 3.1 — SQLite Engine Hardening (2026-07-26)
+**Status:** In progress
+
+**Kya kiya:**
+- SQLite-aware statement classification for CTEs, PRAGMA, EXPLAIN, transactions, DML, DDL, and maintenance statements
+- Safe multi-statement splitting that preserves quoted semicolons and trigger bodies
+- `RETURNING` result support and typed result states for PRAGMA, transactions, and maintenance
+- Schema-aware autocomplete items from local tables, views, columns, indexes, and triggers
+- Inline editor diagnostics for destructive queries, missing WHERE clauses, unsupported dialect hints, and common SQL mistakes
+- Human-readable SQLite runtime errors with actionable hints
+- Offline regression tests for the SQL lexer/classifier and warning layer
 
 ---
 
