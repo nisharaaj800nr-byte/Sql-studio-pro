@@ -85,12 +85,8 @@ function TableViewerInner() {
       setColInfo(info);
       setRowCount(count);
 
-      // Fetch page with optional sort
+      // Fetch page (unsorted fallback — sort is applied via loadDataWithSort)
       const { rows: pageRows, columns: pageCols } = await getTableData(id, decodedName, PAGE_SIZE, page * PAGE_SIZE);
-      // We re-run with sort if needed
-      if (sortCol && pageRows.length > 0) {
-        const { SQLiteDatabase } = await import('expo-sqlite');
-      }
       setColumns(pageCols);
       setRows(pageRows);
     } catch (e) {

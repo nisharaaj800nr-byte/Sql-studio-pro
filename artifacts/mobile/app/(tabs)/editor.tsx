@@ -191,28 +191,43 @@ function EditorInner() {
   const handleBegin = async () => {
     if (!activeDbId) { handlePickDatabase(); return; }
     setTxLoading(true);
-    const r = await beginTransaction(activeDbId);
-    setTxLoading(false);
-    if (r.error) Alert.alert('Error', r.error);
-    else setInTransaction(true);
+    try {
+      const r = await beginTransaction(activeDbId);
+      if (r.error) Alert.alert('Error', r.error);
+      else setInTransaction(true);
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message ?? 'Could not begin transaction.');
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   const handleCommit = async () => {
     if (!activeDbId) return;
     setTxLoading(true);
-    const r = await commitTransaction(activeDbId);
-    setTxLoading(false);
-    if (r.error) Alert.alert('Error', r.error);
-    else { setInTransaction(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+    try {
+      const r = await commitTransaction(activeDbId);
+      if (r.error) Alert.alert('Error', r.error);
+      else { setInTransaction(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message ?? 'Could not commit transaction.');
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   const handleRollback = async () => {
     if (!activeDbId) return;
     setTxLoading(true);
-    const r = await rollbackTransaction(activeDbId);
-    setTxLoading(false);
-    if (r.error) Alert.alert('Error', r.error);
-    else { setInTransaction(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); }
+    try {
+      const r = await rollbackTransaction(activeDbId);
+      if (r.error) Alert.alert('Error', r.error);
+      else { setInTransaction(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); }
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message ?? 'Could not roll back transaction.');
+    } finally {
+      setTxLoading(false);
+    }
   };
 
   return (

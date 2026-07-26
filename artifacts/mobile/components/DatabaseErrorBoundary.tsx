@@ -1,9 +1,10 @@
 import React, { Component, PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useColors } from '@/hooks/useColors';
 
 /**
- * Task 1.5 — DB-specific error boundary.
+ * DB-specific error boundary.
  *
  * Wraps database-heavy screens (table explorer, editor) so a SQLite crash
  * does NOT bubble up to the global ErrorBoundary and reload the whole app.
@@ -30,8 +31,7 @@ function classify(error: Error): {
   if (msg.includes('corrupt') || msg.includes('malformed') || msg.includes('disk image')) {
     return {
       title: 'Database is corrupted',
-      message:
-        'The database file is damaged and cannot be read. You can delete it and start fresh.',
+      message: 'The database file is damaged and cannot be read. You can delete it and start fresh.',
       canDelete: true,
     };
   }
@@ -66,9 +66,49 @@ function classify(error: Error): {
 
   return {
     title: 'Database error',
-    message: error.message,
+    message: error.message || 'An unexpected error occurred.',
     canDelete: false,
   };
+}
+
+// Functional inner component so we can use hooks (theme colors)
+function ErrorFallback({
+  error,
+  onReset,
+  onDeleteDatabase,
+}: {
+  error: Error;
+  onReset: () => void;
+  onDeleteDatabase?: () => void;
+}) {
+  const colors = useColors();
+  const { title, message, canDelete } = classify(error);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Feather name="alert-triangle" size={40} color={colors.destructive} style={styles.icon} />
+      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
+
+      <Pressable
+        onPress={onReset}
+        style={({ pressed }) => [styles.btn, { backgroundColor: colors.primary }, pressed && styles.btnPressed]}
+      >
+        <Feather name="refresh-cw" size={16} color={colors.primaryForeground} />
+        <Text style={[styles.btnTextPrimary, { color: colors.primaryForeground }]}>  Try Again</Text>
+      </Pressable>
+
+      {canDelete && onDeleteDatabase && (
+        <Pressable
+          onPress={() => { onReset(); onDeleteDatabase(); }}
+          style={({ pressed }) => [styles.btn, styles.btnDanger, { borderColor: colors.destructive }, pressed && styles.btnPressed]}
+        >
+          <Feather name="trash-2" size={16} color={colors.destructive} />
+          <Text style={[styles.btnTextDanger, { color: colors.destructive }]}>  Delete Database</Text>
+        </Pressable>
+      )}
+    </View>
+  );
 }
 
 export class DatabaseErrorBoundary extends Component<Props, State> {
@@ -84,35 +124,12 @@ export class DatabaseErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
-    const { title, message, canDelete } = classify(error);
-
     return (
-      <View style={styles.container}>
-        <Feather name="alert-triangle" size={40} color="#F85149" style={styles.icon} />
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-
-        <Pressable
-          onPress={this.reset}
-          style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.btnPressed]}
-        >
-          <Feather name="refresh-cw" size={16} color="#fff" />
-          <Text style={styles.btnTextPrimary}>  Try Again</Text>
-        </Pressable>
-
-        {canDelete && this.props.onDeleteDatabase && (
-          <Pressable
-            onPress={() => {
-              this.reset();
-              this.props.onDeleteDatabase?.();
-            }}
-            style={({ pressed }) => [styles.btn, styles.btnDanger, pressed && styles.btnPressed]}
-          >
-            <Feather name="trash-2" size={16} color="#F85149" />
-            <Text style={styles.btnTextDanger}>  Delete Database</Text>
-          </Pressable>
-        )}
-      </View>
+      <ErrorFallback
+        error={error}
+        onReset={this.reset}
+        onDeleteDatabase={this.props.onDeleteDatabase}
+      />
     );
   }
 }
@@ -123,19 +140,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-    backgroundColor: '#0D1117',
   },
   icon: { marginBottom: 16 },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#E6EDF3',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#8B949E',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
@@ -148,9 +162,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 12,
   },
-  btnPrimary: { backgroundColor: '#58A6FF' },
-  btnDanger: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#F85149' },
+  btnDanger: { backgroundColor: 'transparent', borderWidth: 1 },
   btnPressed: { opacity: 0.75 },
-  btnTextPrimary: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  btnTextDanger: { color: '#F85149', fontSize: 15, fontWeight: '600' },
+  btnTextPrimary: { fontSize: 15, fontWeight: '600' },
+  btnTextDanger: { fontSize: 15, fontWeight: '600' },
 });

@@ -104,7 +104,11 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       setActiveDbId(updated[0]?.id ?? null);
     }
     // Delete the physical .db file so storage isn't leaked
-    await deleteDbFile(id);
+    try {
+      await deleteDbFile(id);
+    } catch {
+      // Non-critical — metadata is already removed; file will be cleaned up on next open
+    }
   };
 
   const updateDatabase = async (

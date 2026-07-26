@@ -77,8 +77,12 @@ export default function AnalyzerScreen() {
       const map: Record<string, { name: string; unique: number }[]> = {};
       await Promise.all(
         tables.map(async t => {
-          const idxs = await getIndexes(id, t.name);
-          if (idxs.length > 0) map[t.name] = idxs.map(i => ({ name: i.name, unique: i.unique }));
+          try {
+            const idxs = await getIndexes(id, t.name);
+            if (idxs.length > 0) map[t.name] = idxs.map(i => ({ name: i.name, unique: i.unique }));
+          } catch {
+            // skip tables that can't be read (locked, corrupt, etc.)
+          }
         })
       );
       setIndexMap(map);
