@@ -763,7 +763,9 @@ export default function SettingsScreen() {
           <Text style={styles.footer}>
             SQL Studio Pro · Powerful SQLite IDE for mobile{'\n'}
 
-          
+            Copyright © 2023 SQL Studio Pro. All rights reserved.{'\n'}
+            Made with ❤️ in india by {'Mukesh choudhary'}{'\n'}
+            
           </Text>
         </View>
       </ScrollView>
