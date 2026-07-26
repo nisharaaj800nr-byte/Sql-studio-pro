@@ -91,6 +91,7 @@ export default function SettingsScreen() {
   const { queryHistory, savedQueries, clearHistory } = useEditor();
   const { databases } = useDatabases();
   const { settings, updateSetting, resetSettings } = useSettings();
+  const { themeMode, setThemeMode } = useTheme();
   const [sqliteCaps, setSqliteCaps] = useState<SQLiteCapabilities | null>(null);
 
   const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 56;
@@ -197,12 +198,12 @@ export default function SettingsScreen() {
           <Text style={[styles.themeLabel, { color: colors.foreground }]}>Theme</Text>
           <View style={[styles.themeSegment, { backgroundColor: colors.secondary }]}>
             {(['dark', 'light', 'system'] as const).map(mode => {
-              const active = settings.themeMode === mode;
+              const active = themeMode === mode;
               const iconName = mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait-outline';
               return (
                 <Pressable
                   key={mode}
-                  onPress={() => { updateSetting('themeMode', mode); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  onPress={() => { setThemeMode(mode); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                   style={[styles.themeSegBtn, active && { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   <Ionicons name={iconName as any} size={13} color={active ? colors.primary : colors.mutedForeground} />
