@@ -21,5 +21,14 @@ export function useColors() {
       ? (colors as unknown as Record<string, typeof colors.light>).dark
       : colors.light;
 
-  return { ...palette, radius: colors.radius, isDark: effectiveScheme === 'dark' };
+  return {
+    ...palette,
+    // Backward compat
+    radius: colors.radius,
+    // Structured scales
+    radii: colors.radii,
+    spacing: colors.spacing,
+    dbPalette: colors.dbPalette,
+    isDark: effectiveScheme === 'dark',
+  };
 }

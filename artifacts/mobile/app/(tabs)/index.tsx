@@ -19,20 +19,46 @@ import { formatNumber } from '@/utils/formatters';
 import * as Haptics from 'expo-haptics';
 
 const QUICK_TEMPLATES = [
-  { label: 'List Tables', icon: 'grid-outline' as const, sql: "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY name;" },
-  { label: 'Table Count', icon: 'calculator-outline' as const, sql: "SELECT COUNT(*) as total_tables FROM sqlite_master WHERE type='table';" },
-  { label: 'DB Stats', icon: 'stats-chart-outline' as const, sql: 'PRAGMA database_list;\nPRAGMA page_count;\nPRAGMA page_size;' },
-  { label: 'Schema Info', icon: 'code-slash-outline' as const, sql: "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;" },
+  {
+    label: 'List Tables',
+    icon: 'grid-outline' as const,
+    color: '#58A6FF',
+    sql: "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY name;",
+  },
+  {
+    label: 'Table Count',
+    icon: 'calculator-outline' as const,
+    color: '#3FB950',
+    sql: "SELECT COUNT(*) as total_tables FROM sqlite_master WHERE type='table';",
+  },
+  {
+    label: 'DB Stats',
+    icon: 'stats-chart-outline' as const,
+    color: '#D2A8FF',
+    sql: 'PRAGMA database_list;\nPRAGMA page_count;\nPRAGMA page_size;',
+  },
+  {
+    label: 'Schema Info',
+    icon: 'code-slash-outline' as const,
+    color: '#FFA657',
+    sql: "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;",
+  },
 ];
 
-const STAT_COLORS = ['#58A6FF', '#3FB950', '#D2A8FF'];
+const QUICK_ACTIONS = [
+  { label: 'New DB',  icon: 'server'   as const, bg: '#2563EB', route: '/(tabs)/databases' as const },
+  { label: 'Run SQL', icon: 'play'     as const, bg: '#059669', route: '/(tabs)/editor'    as const },
+  { label: 'History', icon: 'time'     as const, bg: '#7C3AED', route: '/(tabs)/history'   as const },
+  { label: 'AI Help', icon: 'sparkles' as const, bg: '#C2410C', route: '/ai'               as const },
+];
+
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 56;
 
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { databases, isLoading, setActiveDbId } = useDatabases();
-  const { queryHistory, setCurrentSql } = useEditor();
+  const { queryHistory, totalQueriesRun, setCurrentSql } = useEditor();
   const [totalTables, setTotalTables] = React.useState(0);
 
   React.useEffect(() => {
@@ -44,7 +70,7 @@ export default function DashboardScreen() {
         let count = 0;
         for (const db of databases) {
           const items = await getTables(db.id);
-          count += items.filter(t => t.type === 'table').length;
+          count += items.filter((t: any) => t.type === 'table').length;
         }
         if (!cancelled) setTotalTables(count);
       } catch { /* non-critical */ }
@@ -53,7 +79,7 @@ export default function DashboardScreen() {
   }, [databases]);
 
   const recentDBs = databases.slice(0, 3);
-  const recentHistory = queryHistory.slice(0, 5);
+  const recentHistory = queryHistory.slice(0, 4);
 
   const handleQuickTemplate = (sql: string) => {
     setCurrentSql(sql);
@@ -61,11 +87,9 @@ export default function DashboardScreen() {
     router.push('/(tabs)/editor');
   };
 
-  const stats = [
-    { label: 'Databases', value: databases.length, icon: 'server-outline' as const, color: STAT_COLORS[0] },
-    { label: 'Tables', value: totalTables, icon: 'grid-outline' as const, color: STAT_COLORS[1] },
-    { label: 'Queries', value: formatNumber(queryHistory.length), icon: 'time-outline' as const, color: STAT_COLORS[2] },
-  ];
+  const successRate = queryHistory.length > 0
+    ? Math.round((queryHistory.filter(q => q.success).length / queryHistory.length) * 100)
+    : 0;
 
   return (
     <ScrollView
@@ -73,8 +97,8 @@ export default function DashboardScreen() {
       contentContainerStyle={[
         styles.content,
         {
-          paddingTop: insets.top + 4,
-          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20,
+          paddingTop: insets.top + 6,
+          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 24,
         },
       ]}
       showsVerticalScrollIndicator={false}
@@ -90,21 +114,31 @@ export default function DashboardScreen() {
             <Text style={[styles.appSub, { color: colors.mutedForeground }]}>Local SQLite IDE</Text>
           </View>
         </View>
-        <Pressable
-          onPress={() => router.push('/ai')}
-          hitSlop={8}
-          style={[styles.headerBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => router.push('/ai')}
+            hitSlop={8}
+            style={[styles.headerBtn, { backgroundColor: colors.primarySubtle, borderColor: colors.primary + '40' }]}
+          >
+            <Ionicons name="sparkles-outline" size={15} color={colors.primary} />
+            <Text style={[styles.headerBtnText, { color: colors.primary }]}>AI</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Stats row ──────────────────────────────────────────────── */}
       <View style={[styles.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {stats.map((s, i) => (
+        {[
+          { label: 'Databases', value: databases.length, icon: 'server-outline' as const, color: colors.primary },
+          { label: 'Tables', value: totalTables, icon: 'grid-outline' as const, color: colors.accent },
+          { label: 'Queries Run', value: formatNumber(totalQueriesRun), icon: 'flash-outline' as const, color: '#D2A8FF' },
+        ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
             <View style={styles.statItem}>
+              <View style={[styles.statIconWrap, { backgroundColor: s.color + '18' }]}>
+                <Ionicons name={s.icon} size={13} color={s.color} />
+              </View>
               <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
             </View>
@@ -114,24 +148,19 @@ export default function DashboardScreen() {
 
       {/* ── Quick Actions ───────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Quick Actions</Text>
         <View style={styles.quickGrid}>
-          {[
-            { label: 'New DB',   icon: 'server'    as const, bg: '#1D4ED8', route: '/(tabs)/databases' as const },
-            { label: 'Run SQL',  icon: 'play'      as const, bg: '#059669', route: '/(tabs)/editor'    as const },
-            { label: 'History',  icon: 'time'      as const, bg: '#7C3AED', route: '/(tabs)/history'   as const },
-            { label: 'AI Help',  icon: 'sparkles'  as const, bg: '#C2410C', route: '/ai'               as const },
-          ].map(item => (
+          {QUICK_ACTIONS.map(item => (
             <Pressable
               key={item.label}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route); }}
               style={({ pressed }) => [
                 styles.quickBtn,
-                { opacity: pressed ? 0.78 : 1 },
+                { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
               ]}
             >
               <View style={[styles.quickIconWrap, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={24} color="#FFFFFF" />
+                <Ionicons name={item.icon} size={22} color="#FFFFFF" />
               </View>
               <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
             </Pressable>
@@ -141,8 +170,8 @@ export default function DashboardScreen() {
 
       {/* ── SQL Templates ───────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SQL Templates</Text>
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SQL Templates</Text>
+        <View style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {QUICK_TEMPLATES.map((t, idx) => (
             <Pressable
               key={t.label}
@@ -156,11 +185,11 @@ export default function DashboardScreen() {
                 },
               ]}
             >
-              <View style={[styles.templateIcon, { backgroundColor: colors.primary + '16' }]}>
-                <Ionicons name={t.icon} size={14} color={colors.primary} />
+              <View style={[styles.templateIcon, { backgroundColor: t.color + '18' }]}>
+                <Ionicons name={t.icon} size={14} color={t.color} />
               </View>
               <Text style={[styles.templateLabel, { color: colors.foreground }]}>{t.label}</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
+              <Ionicons name="arrow-forward-outline" size={13} color={colors.mutedForeground} />
             </Pressable>
           ))}
         </View>
@@ -170,9 +199,10 @@ export default function DashboardScreen() {
       {recentDBs.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Databases</Text>
-            <Pressable onPress={() => router.push('/(tabs)/databases')} hitSlop={8}>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Databases</Text>
+            <Pressable onPress={() => router.push('/(tabs)/databases')} hitSlop={8} style={styles.seeAllBtn}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
+              <Ionicons name="chevron-forward" size={12} color={colors.primary} />
             </Pressable>
           </View>
           {recentDBs.map(db => (
@@ -192,9 +222,10 @@ export default function DashboardScreen() {
       {recentHistory.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Queries</Text>
-            <Pressable onPress={() => router.push('/(tabs)/history')} hitSlop={8}>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Queries</Text>
+            <Pressable onPress={() => router.push('/(tabs)/history')} hitSlop={8} style={styles.seeAllBtn}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
+              <Ionicons name="chevron-forward" size={12} color={colors.primary} />
             </Pressable>
           </View>
           {recentHistory.map(entry => (
@@ -214,20 +245,30 @@ export default function DashboardScreen() {
       {/* ── Empty state ─────────────────────────────────────────────── */}
       {databases.length === 0 && !isLoading && (
         <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '16' }]}>
-            <Ionicons name="server-outline" size={30} color={colors.primary} />
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '18' }]}>
+            <Ionicons name="server-outline" size={32} color={colors.primary} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Welcome to SQL Studio Pro</Text>
           <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
             Create your first SQLite database to start running queries locally on-device.
           </Text>
           <Pressable
             onPress={() => router.push('/(tabs)/databases')}
-            style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+            style={[styles.emptyBtn, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
           >
-            <Ionicons name="add-circle-outline" size={16} color={colors.primaryForeground} />
+            <Ionicons name="add-outline" size={16} color={colors.primaryForeground} />
             <Text style={[styles.emptyBtnText, { color: colors.primaryForeground }]}>Create Database</Text>
           </Pressable>
+        </View>
+      )}
+
+      {/* ── Success rate footer ─────────────────────────────────────── */}
+      {queryHistory.length >= 5 && (
+        <View style={[styles.successCard, { backgroundColor: colors.accentSubtle, borderColor: colors.accent + '40' }]}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+          <Text style={[styles.successText, { color: colors.accent }]}>
+            {successRate}% query success rate · {formatNumber(totalQueriesRun)} total
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -236,98 +277,105 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 15 },
+  content: { paddingHorizontal: 16 },
 
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerRight: { flexDirection: 'row', gap: 8 },
   logoMark: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appName: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
-  appSub: { fontSize: 10, marginTop: 0.5, letterSpacing: 0.1 },
-  headerBtn: {
     width: 32,
     height: 32,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
   },
+  appName: { fontSize: 16, fontWeight: '800', letterSpacing: -0.4 },
+  appSub: { fontSize: 10, marginTop: 1, letterSpacing: 0.1 },
+  headerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  headerBtnText: { fontSize: 13, fontWeight: '700' },
 
   // Stats card
   statsCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 14,
+    marginBottom: 16,
     overflow: 'hidden',
   },
-  statItem: { flex: 1, alignItems: 'center', paddingVertical: 12, gap: 2 },
-  statDivider: { width: StyleSheet.hairlineWidth, marginVertical: 10 },
-  statValue: { fontSize: 21, fontWeight: '800', letterSpacing: -0.5 },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statIconWrap: { width: 26, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  statDivider: { width: StyleSheet.hairlineWidth, marginVertical: 12 },
+  statValue: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
   statLabel: { fontSize: 10, fontWeight: '500', letterSpacing: 0.1 },
 
   // Sections
-  section: { marginBottom: 18 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', marginBottom: 7, letterSpacing: 0.1, textTransform: 'uppercase' },
+  section: { marginBottom: 20 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase' },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 7,
+    marginBottom: 8,
   },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   seeAll: { fontSize: 13, fontWeight: '600' },
 
-  // Quick actions grid
-  quickGrid: { flexDirection: 'row', gap: 10 },
+  // Quick actions
+  quickGrid: { flexDirection: 'row', gap: 8 },
   quickBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    gap: 7,
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   quickIconWrap: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     elevation: 4,
   },
-  quickLabel: { fontSize: 11, fontWeight: '600', letterSpacing: -0.1 },
+  quickLabel: { fontSize: 11, fontWeight: '700', letterSpacing: -0.1 },
 
-  // Card / template list
-  card: {
-    borderRadius: 12,
+  // Template list
+  templateCard: {
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   templateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 11,
   },
   templateIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -335,31 +383,47 @@ const styles = StyleSheet.create({
 
   // Empty state
   emptyCard: {
-    padding: 26,
-    borderRadius: 14,
+    padding: 28,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     marginTop: 8,
   },
   emptyIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 15,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '700' },
-  emptyDesc: { fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 250 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginTop: 4,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 11,
+    marginTop: 6,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  emptyBtnText: { fontSize: 14, fontWeight: '700' },
+  emptyBtnText: { fontSize: 15, fontWeight: '700' },
+
+  // Success rate
+  successCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  successText: { fontSize: 13, fontWeight: '600' },
 });

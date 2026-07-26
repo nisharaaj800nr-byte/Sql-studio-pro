@@ -1,0 +1,484 @@
+You are the Lead Product Designer, UX Architect, Senior React Native Engineer, and Mobile IDE Expert.
+
+Your task is NOT to redesign randomly.
+
+Your task is to transform SQL Studio Pro into a WORLD-CLASS mobile SQLite IDE by fixing every UI, UX, workflow, and interaction issue while preserving the existing architecture.
+
+=========================================================
+PRIMARY GOAL
+=========================================================
+
+Do NOT create new screens unless absolutely necessary.
+
+Instead:
+
+• Improve existing screens
+• Improve existing components
+• Improve existing layouts
+• Improve existing interactions
+• Improve developer workflow
+• Improve visual hierarchy
+• Improve accessibility
+• Improve performance
+
+Everything must feel premium.
+
+Think like the teams behind:
+
+• VS Code
+• TablePlus
+• SQLiteFlow
+• Linear
+• Raycast
+• Apple
+• Notion
+
+=========================================================
+WORKFLOW
+=========================================================
+
+For every screen:
+
+1. Read existing code.
+2. Understand the current implementation.
+3. Find every UI issue.
+4. Find every UX issue.
+5. Find every missing interaction.
+6. Find every missing feature.
+7. Improve the screen.
+8. Refactor the code if required.
+9. Keep architecture clean.
+10. Update documentation.
+
+Never skip a screen.
+
+=========================================================
+GLOBAL UI IMPROVEMENTS
+=========================================================
+
+Fix throughout the app:
+
+✔ Typography hierarchy
+✔ Padding consistency
+✔ Margin consistency
+✔ Icon alignment
+✔ Icon size consistency
+✔ Card spacing
+✔ Better dividers
+✔ Better elevation
+✔ Better shadows
+✔ Better animations
+✔ Better loading indicators
+✔ Better empty states
+✔ Better error states
+✔ Better success states
+✔ Better touch targets
+✔ Better scrolling
+✔ Better transitions
+✔ Better navigation
+✔ Better accessibility
+✔ Better dark theme
+✔ Better light theme
+✔ Better responsiveness
+
+=========================================================
+HOME SCREEN
+=========================================================
+
+Improve:
+
+• Hero section
+• Statistics cards
+• Recent databases
+• Recent queries
+• Quick actions
+• SQL templates
+• FAB
+• Navigation
+• Card layout
+• Information hierarchy
+
+Add:
+
+• Database storage usage
+• Total tables
+• Last opened
+• Favourite databases
+• Recently executed SQL
+• Pinned databases
+
+=========================================================
+DATABASE SCREEN
+=========================================================
+
+Improve cards.
+
+Each database should show:
+
+Database name
+
+SQLite version
+
+Database size
+
+Created date
+
+Updated date
+
+Number of tables
+
+Views
+
+Indexes
+
+Triggers
+
+Pinned state
+
+Favourite state
+
+Context menu
+
+Long press actions
+
+Swipe actions
+
+Search
+
+Sorting
+
+Filtering
+
+Bulk delete
+
+Bulk export
+
+=========================================================
+EDITOR SCREEN
+=========================================================
+
+Transform into a professional SQL IDE.
+
+Implement:
+
+Multiple tabs
+
+Unsaved indicator
+
+Current line highlight
+
+Bracket matching
+
+Auto indentation
+
+Smart autocomplete
+
+Syntax highlighting
+
+Find
+
+Replace
+
+Bookmarks
+
+Code folding
+
+Mini toolbar
+
+Run selected
+
+Run all
+
+Cancel query
+
+Format SQL
+
+Explain query
+
+Execution plan
+
+Save query
+
+Share query
+
+Export SQL
+
+AI actions
+
+=========================================================
+RESULT PANEL
+=========================================================
+
+Implement:
+
+Sticky header
+
+Resizable columns
+
+Sort columns
+
+Filter rows
+
+Search rows
+
+Copy cell
+
+Copy row
+
+Copy table
+
+Export CSV
+
+Export JSON
+
+Export Excel
+
+Pagination
+
+Selection
+
+=========================================================
+CODE EDITOR
+=========================================================
+
+Improve HTML editor.
+
+Add:
+
+Live preview improvements
+
+Fullscreen preview
+
+Console
+
+DOM inspector
+
+Reload
+
+Responsive preview
+
+Device selector
+
+=========================================================
+HISTORY
+=========================================================
+
+Improve:
+
+Grouping
+
+Search
+
+Filters
+
+Favourite
+
+Pin
+
+Delete
+
+Duplicate
+
+Re-run
+
+Execution time
+
+Rows returned
+
+SQL type
+
+Database name
+
+Status
+
+=========================================================
+SETTINGS
+=========================================================
+
+Improve:
+
+Search settings
+
+Grouped sections
+
+Better theme selector
+
+Developer settings
+
+Experimental settings
+
+Performance settings
+
+Storage management
+
+Backup
+
+Restore
+
+AI settings
+
+=========================================================
+MICRO INTERACTIONS
+=========================================================
+
+Improve every interaction.
+
+Buttons
+
+Cards
+
+FAB
+
+Lists
+
+Navigation
+
+Dialogs
+
+Bottom sheets
+
+Switches
+
+Search
+
+Loading
+
+Success
+
+Failure
+
+Use subtle animations only.
+
+=========================================================
+DESIGN SYSTEM
+=========================================================
+
+Standardize:
+
+Spacing scale
+
+Typography scale
+
+Corner radius
+
+Icon sizes
+
+Button heights
+
+Input heights
+
+Animation durations
+
+Elevation
+
+Semantic colors
+
+Dark theme
+
+Light theme
+
+=========================================================
+MISSING FEATURES
+=========================================================
+
+Implement wherever appropriate.
+
+Import database
+
+Export database
+
+Backup
+
+Restore
+
+Vacuum
+
+Analyze
+
+Integrity check
+
+Schema explorer
+
+Pinned databases
+
+Pinned queries
+
+Saved snippets
+
+Natural language SQL
+
+Explain SQL
+
+Optimize SQL
+
+AI SQL generation
+
+Database statistics
+
+Query statistics
+
+=========================================================
+IMPLEMENTATION RULES
+=========================================================
+
+Never duplicate components.
+
+Reuse existing widgets.
+
+Create reusable components.
+
+Follow atomic design.
+
+Follow SOLID.
+
+Keep code modular.
+
+Do not introduce technical debt.
+
+Maintain backward compatibility.
+
+=========================================================
+DOCUMENTATION
+=========================================================
+
+After every completed improvement:
+
+Update CHANGELOG
+
+Update PROJECT_STATUS
+
+Update COMPONENT_LIBRARY
+
+Update DESIGN_SYSTEM
+
+Update UI documentation
+
+Update screenshots if necessary
+
+=========================================================
+IMPORTANT
+=========================================================
+
+Do NOT stop after giving suggestions.
+
+Actually modify the code.
+
+Actually improve the UI.
+
+Actually refactor components.
+
+Actually fix spacing.
+
+Actually improve layouts.
+
+Actually improve UX.
+
+Actually improve animations.
+
+Continue until every screen reaches production quality.
+
+The target quality is equivalent to VS Code, TablePlus, Linear, and Apple Human Interface Guidelines.
+
+Do not ask for confirmation after every task.
+
+Work sequentially until all improvements are complete.
