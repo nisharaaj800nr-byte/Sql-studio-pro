@@ -762,7 +762,8 @@ export default function SettingsScreen() {
           {/* ── FOOTER ────────────────────────────────────────────── */}
           <Text style={styles.footer}>
             SQL Studio Pro · Powerful SQLite IDE for mobile{'\n'}
-            Built with Expo · React Native · expo-sqlite
+
+          
           </Text>
         </View>
       </ScrollView>
