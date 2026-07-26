@@ -9,11 +9,21 @@ interface DatabaseCardProps {
   database: DatabaseMeta;
   onPress: () => void;
   onLongPress?: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
   tableCount?: number;
   size?: number;
 }
 
-export function DatabaseCard({ database, onPress, onLongPress, tableCount, size }: DatabaseCardProps) {
+export function DatabaseCard({
+  database,
+  onPress,
+  onLongPress,
+  onRename,
+  onDelete,
+  tableCount,
+  size,
+}: DatabaseCardProps) {
   const colors = useColors();
 
   return (
@@ -25,15 +35,19 @@ export function DatabaseCard({ database, onPress, onLongPress, tableCount, size 
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          borderLeftColor: database.color,
-          opacity: pressed ? 0.85 : 1,
+          opacity: pressed ? 0.88 : 1,
         },
       ]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: database.color + '1A' }]}>
-        <MaterialCommunityIcons name="database" size={26} color={database.color} />
+      {/* Color accent bar */}
+      <View style={[styles.accent, { backgroundColor: database.color }]} />
+
+      {/* Icon */}
+      <View style={[styles.iconWrap, { backgroundColor: database.color + '20' }]}>
+        <MaterialCommunityIcons name="database" size={22} color={database.color} />
       </View>
 
+      {/* Info */}
       <View style={styles.info}>
         <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
           {database.name}
@@ -46,7 +60,7 @@ export function DatabaseCard({ database, onPress, onLongPress, tableCount, size 
         <View style={styles.meta}>
           {tableCount !== undefined && (
             <View style={styles.metaItem}>
-              <MaterialIcons name="table-chart" size={11} color={colors.mutedForeground} />
+              <MaterialIcons name="table-chart" size={10} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
                 {tableCount} table{tableCount !== 1 ? 's' : ''}
               </Text>
@@ -54,14 +68,14 @@ export function DatabaseCard({ database, onPress, onLongPress, tableCount, size 
           )}
           {size !== undefined && (
             <View style={styles.metaItem}>
-              <MaterialIcons name="storage" size={11} color={colors.mutedForeground} />
+              <MaterialIcons name="storage" size={10} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
                 {formatBytes(size)}
               </Text>
             </View>
           )}
           <View style={styles.metaItem}>
-            <MaterialIcons name="schedule" size={11} color={colors.mutedForeground} />
+            <MaterialIcons name="schedule" size={10} color={colors.mutedForeground} />
             <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
               {formatRelativeTime(database.lastModified)}
             </Text>
@@ -69,7 +83,28 @@ export function DatabaseCard({ database, onPress, onLongPress, tableCount, size 
         </View>
       </View>
 
-      <MaterialIcons name="chevron-right" size={20} color={colors.mutedForeground} />
+      {/* Action buttons */}
+      <View style={styles.actions}>
+        {onRename && (
+          <Pressable
+            onPress={onRename}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? colors.muted : 'transparent' }]}
+          >
+            <MaterialIcons name="edit" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        )}
+        {onDelete && (
+          <Pressable
+            onPress={onDelete}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? colors.destructive + '20' : 'transparent' }]}
+          >
+            <MaterialIcons name="delete-outline" size={16} color={colors.destructive} />
+          </Pressable>
+        )}
+        <MaterialIcons name="chevron-right" size={18} color={colors.mutedForeground} />
+      </View>
     </Pressable>
   );
 }
@@ -78,26 +113,37 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
+    paddingVertical: 12,
+    paddingRight: 12,
     marginVertical: 4,
     borderRadius: 12,
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    gap: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    gap: 12,
+  },
+  accent: {
+    width: 3,
+    alignSelf: 'stretch',
   },
   iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: { flex: 1, gap: 3 },
-  name: { fontSize: 16, fontWeight: '600', letterSpacing: -0.2 },
-  desc: { fontSize: 13 },
-  meta: { flexDirection: 'row', gap: 10, marginTop: 3, flexWrap: 'wrap' },
+  info: { flex: 1, gap: 2 },
+  name: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
+  desc: { fontSize: 12 },
+  meta: { flexDirection: 'row', gap: 8, marginTop: 3, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaText: { fontSize: 11 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  actionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

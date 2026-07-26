@@ -28,6 +28,22 @@ const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 // ── Per-language snippet bars ─────────────────────────────────────────────────
 
 const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
+  python: [
+    { label: 'print',   text: 'print()' },
+    { label: 'def',     text: 'def name():\n    ' },
+    { label: 'class',   text: 'class Name:\n    def __init__(self):\n        ' },
+    { label: 'if',      text: 'if condition:\n    ' },
+    { label: 'for',     text: 'for item in items:\n    ' },
+    { label: 'while',   text: 'while condition:\n    ' },
+    { label: 'import',  text: 'import ' },
+    { label: 'from',    text: 'from module import ' },
+    { label: 'try',     text: 'try:\n    \nexcept Exception as e:\n    print(e)' },
+    { label: 'list',    text: '[item for item in iterable]' },
+    { label: 'dict',    text: '{key: value for key, value in items.items()}' },
+    { label: 'lambda',  text: 'lambda x: x' },
+    { label: 'with',    text: 'with open("file.txt") as f:\n    ' },
+    { label: 'assert',  text: 'assert condition, "message"' },
+  ],
   react: [
     { label: 'useState',     text: 'const [value, setValue] = React.useState(initialValue);' },
     { label: 'useEffect',    text: 'React.useEffect(() => {\n  // side effect\n  return () => { /* cleanup */ };\n}, [deps]);' },
@@ -102,18 +118,20 @@ const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
 
 // ── Language config ───────────────────────────────────────────────────────────
 
-const LANG_LABELS: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript', react: 'React (JSX)' };
+const LANG_LABELS: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript', react: 'React (JSX)', python: 'Python' };
 const LANG_ICONS:  Record<CodeLanguage, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
-  html:  'language-html5',
-  css:   'language-css3',
-  js:    'language-javascript',
-  react: 'react',
+  html:   'language-html5',
+  css:    'language-css3',
+  js:     'language-javascript',
+  react:  'react',
+  python: 'language-python',
 };
 const LANG_COLORS: Record<CodeLanguage, string> = {
-  html:  '#e34c26',
-  css:   '#264de4',
-  js:    '#f0db4f',
-  react: '#61dafb',
+  html:   '#e34c26',
+  css:    '#264de4',
+  js:     '#f0db4f',
+  react:  '#61dafb',
+  python: '#3776ab',
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -171,7 +189,7 @@ export default function CodeScreen() {
   const lineCount = code.split('\n').length;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Platform.OS === 'web' ? 67 : insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
 
       {/* ── Tab bar ────────────────────────────────────────────────────────── */}
       <ScrollView

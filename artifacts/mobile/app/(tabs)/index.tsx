@@ -59,29 +59,31 @@ export default function DashboardScreen() {
     router.push('/(tabs)/editor');
   };
 
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
-          paddingTop: Platform.OS === 'web' ? 80 : insets.top + 16,
-          paddingBottom: insets.bottom + 100,
+          paddingTop: insets.top + 16,
+          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16,
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerText}>
           <Text style={[styles.appName, { color: colors.foreground }]}>SQL Studio Pro</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Your mobile database IDE
+            Mobile database IDE
           </Text>
         </View>
         <Pressable
           onPress={() => router.push('/ai')}
-          style={[styles.aiBtn, { backgroundColor: colors.primary + '1A', borderColor: colors.primary + '44' }]}
+          style={[styles.aiBtn, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}
         >
           <MaterialCommunityIcons name="robot-outline" size={20} color={colors.primary} />
         </Pressable>
@@ -89,69 +91,42 @@ export default function DashboardScreen() {
 
       {/* Stats */}
       <View style={styles.statsRow}>
-        <StatCard
-          icon="database"
-          label="Databases"
-          value={databases.length}
-          color={colors.tint}
-        />
-        <StatCard
-          icon="table-multiple"
-          label="Queries Run"
-          value={formatNumber(totalQueriesRun)}
-          color={colors.accent}
-        />
-        <StatCard
-          icon="history"
-          label="History"
-          value={formatNumber(queryHistory.length)}
-          color={colors.primary}
-        />
+        <StatCard icon="database" label="Databases" value={databases.length} color={colors.primary} />
+        <StatCard icon="table-multiple" label="Tables" value={totalTables} color={colors.accent} />
+        <StatCard icon="history" label="Queries" value={formatNumber(queryHistory.length)} color="#D2A8FF" />
       </View>
 
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
-        <View style={styles.quickActions}>
+        <View style={styles.quickGrid}>
           <Pressable
             onPress={() => router.push('/(tabs)/databases')}
-            style={({ pressed }) => [
-              styles.quickBtn,
-              { backgroundColor: pressed ? '#58A6FF33' : '#58A6FF1A', borderColor: '#58A6FF44' },
-            ]}
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.primary + (pressed ? '30' : '18'), borderColor: colors.primary + '35' }]}
           >
-            <MaterialCommunityIcons name="database-plus" size={22} color="#58A6FF" />
-            <Text style={[styles.quickBtnText, { color: '#58A6FF' }]}>New DB</Text>
+            <MaterialCommunityIcons name="database-plus" size={24} color={colors.primary} />
+            <Text style={[styles.quickLabel, { color: colors.primary }]}>New DB</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push('/(tabs)/editor')}
-            style={({ pressed }) => [
-              styles.quickBtn,
-              { backgroundColor: pressed ? '#3FB95033' : '#3FB9501A', borderColor: '#3FB95044' },
-            ]}
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.accent + (pressed ? '30' : '18'), borderColor: colors.accent + '35' }]}
           >
-            <MaterialCommunityIcons name="play-circle-outline" size={22} color="#3FB950" />
-            <Text style={[styles.quickBtnText, { color: '#3FB950' }]}>Run SQL</Text>
+            <MaterialCommunityIcons name="play-circle-outline" size={24} color={colors.accent} />
+            <Text style={[styles.quickLabel, { color: colors.accent }]}>Run SQL</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push('/(tabs)/history')}
-            style={({ pressed }) => [
-              styles.quickBtn,
-              { backgroundColor: pressed ? '#D2A8FF33' : '#D2A8FF1A', borderColor: '#D2A8FF44' },
-            ]}
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: '#D2A8FF' + (pressed ? '30' : '18'), borderColor: '#D2A8FF35' }]}
           >
-            <MaterialCommunityIcons name="history" size={22} color="#D2A8FF" />
-            <Text style={[styles.quickBtnText, { color: '#D2A8FF' }]}>History</Text>
+            <MaterialIcons name="history" size={24} color="#D2A8FF" />
+            <Text style={[styles.quickLabel, { color: '#D2A8FF' }]}>History</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push('/ai')}
-            style={({ pressed }) => [
-              styles.quickBtn,
-              { backgroundColor: pressed ? '#FFA65733' : '#FFA6571A', borderColor: '#FFA65744' },
-            ]}
+            style={({ pressed }) => [styles.quickBtn, { backgroundColor: '#FFA657' + (pressed ? '30' : '18'), borderColor: '#FFA65735' }]}
           >
-            <MaterialCommunityIcons name="robot-outline" size={22} color="#FFA657" />
-            <Text style={[styles.quickBtnText, { color: '#FFA657' }]}>AI Help</Text>
+            <MaterialCommunityIcons name="robot-outline" size={24} color="#FFA657" />
+            <Text style={[styles.quickLabel, { color: '#FFA657' }]}>AI Help</Text>
           </Pressable>
         </View>
       </View>
@@ -159,25 +134,25 @@ export default function DashboardScreen() {
       {/* SQL Templates */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SQL Templates</Text>
-        <View style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {QUICK_TEMPLATES.map((t, idx) => (
             <Pressable
               key={t.label}
               onPress={() => handleQuickTemplate(t.sql)}
               style={({ pressed }) => [
-                styles.templateItem,
+                styles.templateRow,
                 {
                   borderBottomColor: colors.border,
-                  borderBottomWidth: idx < QUICK_TEMPLATES.length - 1 ? 1 : 0,
+                  borderBottomWidth: idx < QUICK_TEMPLATES.length - 1 ? StyleSheet.hairlineWidth : 0,
                   backgroundColor: pressed ? colors.muted : 'transparent',
                 },
               ]}
             >
-              <View style={[styles.templateIcon, { backgroundColor: colors.primary + '1A' }]}>
+              <View style={[styles.templateIcon, { backgroundColor: colors.primary + '20' }]}>
                 <MaterialCommunityIcons name={t.icon} size={16} color={colors.primary} />
               </View>
               <Text style={[styles.templateLabel, { color: colors.foreground }]}>{t.label}</Text>
-              <MaterialIcons name="north-east" size={14} color={colors.mutedForeground} />
+              <MaterialIcons name="north-east" size={13} color={colors.mutedForeground} />
             </Pressable>
           ))}
         </View>
@@ -186,7 +161,7 @@ export default function DashboardScreen() {
       {/* Recent Databases */}
       {recentDBs.length > 0 && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionRow}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Databases</Text>
             <Pressable onPress={() => router.push('/(tabs)/databases')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
@@ -205,10 +180,10 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Recent Query History */}
+      {/* Recent Queries */}
       {recentHistory.length > 0 && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionRow}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Queries</Text>
             <Pressable onPress={() => router.push('/(tabs)/history')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
@@ -228,20 +203,22 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {/* Empty state */}
       {databases.length === 0 && !isLoading && (
-        <View style={[styles.welcomeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <MaterialCommunityIcons name="database-plus" size={48} color={colors.primary} />
-          <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>Get Started</Text>
-          <Text style={[styles.welcomeDesc, { color: colors.mutedForeground }]}>
-            Create your first database to start managing SQLite data and running queries.
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '20' }]}>
+            <MaterialCommunityIcons name="database-plus" size={36} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
+          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+            Create your first SQLite database to start running queries.
           </Text>
           <Pressable
             onPress={() => router.push('/(tabs)/databases')}
-            style={[styles.welcomeBtn, { backgroundColor: colors.primary }]}
+            style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
           >
-            <Text style={[styles.welcomeBtnText, { color: colors.primaryForeground }]}>
-              Create Database
-            </Text>
+            <MaterialCommunityIcons name="database-plus" size={16} color={colors.primaryForeground} />
+            <Text style={[styles.emptyBtnText, { color: colors.primaryForeground }]}>Create Database</Text>
           </Pressable>
         </View>
       )}
@@ -251,45 +228,41 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 0 },
+  content: { paddingHorizontal: 16 },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
-  appName: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, marginTop: 2 },
+  headerText: { gap: 2 },
+  appName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13 },
   aiBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 24,
-  },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
+
+  // Sections
   section: { marginBottom: 24 },
-  sectionHeader: {
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+  sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
     marginBottom: 10,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', paddingHorizontal: 20, marginBottom: 10 },
-  seeAll: { fontSize: 14, fontWeight: '600' },
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 10,
-  },
+  seeAll: { fontSize: 13, fontWeight: '600' },
+
+  // Quick actions grid
+  quickGrid: { flexDirection: 'row', gap: 8 },
   quickBtn: {
     flex: 1,
     alignItems: 'center',
@@ -299,18 +272,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
   },
-  quickBtnText: { fontSize: 11, fontWeight: '700' },
-  templateCard: {
-    marginHorizontal: 16,
+  quickLabel: { fontSize: 11, fontWeight: '700' },
+
+  // Card / template list
+  card: {
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  templateItem: {
+  templateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 12,
   },
   templateIcon: {
@@ -321,21 +295,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   templateLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
-  welcomeCard: {
-    margin: 16,
+
+  // Empty state
+  emptyCard: {
     padding: 28,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     gap: 10,
   },
-  welcomeTitle: { fontSize: 22, fontWeight: '700' },
-  welcomeDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 280 },
-  welcomeBtn: {
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: '700' },
+  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 8,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
   },
-  welcomeBtnText: { fontSize: 16, fontWeight: '700' },
+  emptyBtnText: { fontSize: 15, fontWeight: '700' },
 });

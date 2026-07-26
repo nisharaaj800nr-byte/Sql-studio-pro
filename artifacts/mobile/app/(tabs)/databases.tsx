@@ -83,12 +83,9 @@ export default function DatabasesScreen() {
     }
   };
 
-  const handleLongPress = (db: typeof databases[0]) => {
+  const handleOptions = (db: typeof databases[0]) => {
     Alert.alert(db.name, 'Choose an action', [
-      {
-        text: 'Open Explorer',
-        onPress: () => router.push(`/database/${db.id}`),
-      },
+      { text: 'Open Explorer', onPress: () => router.push(`/database/${db.id}`) },
       {
         text: 'Rename',
         onPress: () => {
@@ -96,11 +93,7 @@ export default function DatabasesScreen() {
           setModalMode('rename');
         },
       },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => handleDelete(db),
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(db) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -123,45 +116,47 @@ export default function DatabasesScreen() {
     );
   };
 
+  const handleRename = (db: typeof databases[0]) => {
+    setRenameTarget(db);
+    setModalMode('rename');
+  };
+
   const filtered = databases.filter(db =>
     db.name.toLowerCase().includes(search.toLowerCase()) ||
     db.description.toLowerCase().includes(search.toLowerCase())
   );
 
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Platform.OS === 'web' ? 74 : insets.top + 10,
-          },
-        ]}
-      >
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
-        <Pressable onPress={handleCreate} hitSlop={8}>
-          <MaterialCommunityIcons name="database-plus" size={24} color={colors.primary} />
+        <Pressable
+          onPress={handleCreate}
+          hitSlop={10}
+          style={[styles.addBtn, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}
+        >
+          <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
         </Pressable>
       </View>
 
       {/* Search */}
-      <View style={[styles.searchBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <MaterialIcons name="search" size={18} color={colors.mutedForeground} />
+          <MaterialIcons name="search" size={17} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search databases..."
+            placeholder="Search databases…"
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchText, { color: colors.foreground }]}
             autoCorrect={false}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <MaterialIcons name="close" size={16} color={colors.mutedForeground} />
+              <MaterialIcons name="close" size={15} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
@@ -175,14 +170,15 @@ export default function DatabasesScreen() {
           <DatabaseCard
             database={item}
             onPress={() => router.push(`/database/${item.id}`)}
-            onLongPress={() => handleLongPress(item)}
+            onRename={() => handleRename(item)}
+            onDelete={() => handleDelete(item)}
             tableCount={dbStats[item.id]?.tableCount}
             size={dbStats[item.id]?.size}
           />
         )}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: insets.bottom + 100 },
+          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 80 },
           filtered.length === 0 && { flex: 1 },
         ]}
         ListEmptyComponent={
@@ -201,11 +197,8 @@ export default function DatabasesScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {databases.length > 0 && (
-        <FAB icon="add" onPress={handleCreate} />
-      )}
+      {databases.length > 0 && <FAB icon="add" onPress={handleCreate} />}
 
-      {/* Cross-platform Input Modal */}
       <InputModal
         visible={modalMode === 'create'}
         title="New Database"
@@ -236,23 +229,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  searchBar: {
+  addBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  searchWrap: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 9,
     gap: 8,
   },
   searchText: { flex: 1, fontSize: 15 },
-  list: { paddingTop: 8 },
+  list: { paddingTop: 8, paddingHorizontal: 16 },
 });

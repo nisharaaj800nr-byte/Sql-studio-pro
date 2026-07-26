@@ -29,6 +29,9 @@ export default function HistoryScreen() {
     q.databaseName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const successCount = queryHistory.filter(q => q.success).length;
+  const failCount = queryHistory.filter(q => !q.success).length;
+
   const handleUse = (sql: string) => {
     setCurrentSql(sql);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -54,63 +57,56 @@ export default function HistoryScreen() {
     ]);
   };
 
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Platform.OS === 'web' ? 74 : insets.top + 10,
-          },
-        ]}
-      >
+      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>History</Text>
         {queryHistory.length > 0 && (
-          <Pressable onPress={handleClear} hitSlop={8}>
+          <Pressable onPress={handleClear} hitSlop={10}>
             <MaterialIcons name="delete-sweep" size={22} color={colors.destructive} />
           </Pressable>
         )}
       </View>
 
       {/* Search */}
-      <View style={[styles.searchBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <MaterialIcons name="search" size={18} color={colors.mutedForeground} />
+          <MaterialIcons name="search" size={17} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search queries..."
+            placeholder="Search queries…"
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchText, { color: colors.foreground }]}
             autoCorrect={false}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <MaterialIcons name="close" size={16} color={colors.mutedForeground} />
+              <MaterialIcons name="close" size={15} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
       </View>
 
-      {/* Stats bar */}
+      {/* Stats pill row */}
       {queryHistory.length > 0 && (
         <View style={[styles.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Text style={[styles.statsText, { color: colors.mutedForeground }]}>
+          <Text style={[styles.statsTotal, { color: colors.mutedForeground }]}>
             {filtered.length} {filtered.length === 1 ? 'query' : 'queries'}
-            {search ? ` matching "${search}"` : ' in history'}
+            {search ? ` matching "${search}"` : ''}
           </Text>
           <View style={styles.statsRight}>
-            <View style={[styles.statDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.statsText, { color: colors.mutedForeground }]}>
-              {queryHistory.filter(q => q.success).length} successful
-            </Text>
-            <View style={[styles.statDot, { backgroundColor: colors.destructive, marginLeft: 12 }]} />
-            <Text style={[styles.statsText, { color: colors.mutedForeground }]}>
-              {queryHistory.filter(q => !q.success).length} failed
-            </Text>
+            <View style={[styles.pill, { backgroundColor: colors.accent + '22' }]}>
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+              <Text style={[styles.pillText, { color: colors.accent }]}>{successCount} ok</Text>
+            </View>
+            <View style={[styles.pill, { backgroundColor: colors.destructive + '22' }]}>
+              <View style={[styles.dot, { backgroundColor: colors.destructive }]} />
+              <Text style={[styles.pillText, { color: colors.destructive }]}>{failCount} failed</Text>
+            </View>
           </View>
         </View>
       )}
@@ -129,7 +125,7 @@ export default function HistoryScreen() {
         contentContainerStyle={[
           styles.list,
           filtered.length === 0 && { flex: 1 },
-          { paddingBottom: (Platform.OS === 'web' ? 34 : insets.bottom) + 80 },
+          { paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16 },
         ]}
         ListEmptyComponent={
           <EmptyState
@@ -156,19 +152,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  searchBar: {
+  searchWrap: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 9,
     gap: 8,
@@ -179,11 +175,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
+    paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  statsRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statsText: { fontSize: 12 },
-  statDot: { width: 6, height: 6, borderRadius: 3 },
+  statsTotal: { fontSize: 12 },
+  statsRight: { flexDirection: 'row', gap: 6 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  dot: { width: 5, height: 5, borderRadius: 3 },
+  pillText: { fontSize: 11, fontWeight: '600' },
   list: { paddingTop: 4 },
 });
