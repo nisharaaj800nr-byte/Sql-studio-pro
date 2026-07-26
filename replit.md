@@ -80,6 +80,20 @@ Supported:
 
 See `PROJECT_STATUS.md` and `TRACKER.md` for detailed task tracking.
 
+## Setup verification (2026-07-26)
+
+After import, `pnpm install` was run to install all 1200 packages. Both workflows
+confirmed running:
+
+| Check | Result |
+|-------|--------|
+| `pnpm install` | ✅ 1200 packages installed |
+| Mobile workflow (Expo, port 18115) | ✅ Running — Metro bundler up |
+| API workflow (Express, port 8080) | ✅ Running — server listening |
+| Mobile typecheck (`tsc --noEmit`) | ✅ No errors |
+| API build (`node build.mjs`) | ✅ dist/index.mjs built in ~155 ms |
+| Mobile tests (`jest --runInBand`) | ✅ 408 tests passed, 0 failed |
+
 ## User preferences
 
 - Keep existing project structure and stack — do not restructure or migrate.
