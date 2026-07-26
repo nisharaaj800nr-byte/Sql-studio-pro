@@ -1,7 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
@@ -26,13 +25,18 @@ function TabIcon({
 
 const iconStyles = StyleSheet.create({
   activeWrapper: {
-    // subtle active indicator
+    minWidth: 42,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
 export default function TabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
   const isDark = colors.isDark;
   const isIOS = Platform.OS === 'ios';
 
@@ -44,13 +48,13 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: 'transparent',
+          backgroundColor: colors.card,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           elevation: 0,
-          height: isIOS ? 78 : 58,
-          paddingBottom: isIOS ? 22 : 6,
-          paddingTop: 7,
+          height: isIOS ? 76 : 64,
+          paddingBottom: isIOS ? 19 : 8,
+          paddingTop: 8,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -68,10 +72,10 @@ export default function TabLayout() {
             />
           ),
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: '600',
-          letterSpacing: 0.1,
-          marginTop: 0,
+          letterSpacing: 0.2,
+          marginTop: 2,
         },
         tabBarIconStyle: { marginBottom: -1 },
         tabBarHideOnKeyboard: true,

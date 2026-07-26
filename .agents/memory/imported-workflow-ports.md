@@ -7,4 +7,4 @@ Imported projects can contain valid `.replit-artifact/artifact.toml` files witho
 
 **Why:** Without an injected `PORT`, both Expo's `--port $PORT` and the API's required `PORT` check fail before the services start.
 
-**How to apply:** Check the workflow registry after import; if it is empty, configure the existing app commands with their documented service ports and verify both the preview response and API health endpoint.
+**How to apply:** Check the workflow registry after import; if it is empty, configure the existing app commands with their documented service ports and verify both the preview response and API health endpoint. Run the repository's frozen-lockfile install first when the import has no `node_modules`.

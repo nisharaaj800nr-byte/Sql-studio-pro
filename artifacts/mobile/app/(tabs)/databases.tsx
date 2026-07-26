@@ -161,13 +161,16 @@ export default function DatabasesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
+        <View>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>LOCAL WORKSPACE</Text>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
           {databases.length > 0 && (
             <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.countText, { color: colors.mutedForeground }]}>{databases.length}</Text>
             </View>
           )}
+          </View>
         </View>
         <View style={styles.headerActions}>
           {databases.length > 1 && (
@@ -291,7 +294,8 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  eyebrow: { fontSize: 9, fontWeight: '800', letterSpacing: 1.2, marginBottom: 3 },
+  title: { fontSize: 21, fontWeight: '800', letterSpacing: -0.5 },
   countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,

@@ -1,5 +1,5 @@
 # SQL Studio Pro — Project Status
-> Last Updated: 2026-07-26 (UI Polish + Local SQL Runner verified)
+> Last Updated: 2026-07-26 (Reference screen polish + Replit workflow verified)
 > Vision: A professional, offline-first, multi-language database IDE for mobile
 
 ---
@@ -11,7 +11,7 @@ Phase 1 — Core Stability         ██████████  100%  (7/7)
 Phase 2 — Professional Features  ██████████  100%  (20/20)
 Phase 3 — Multi-Language Support ███░░░░░░░   31%  (SQLite ✅, HTML ✅, CSS ✅, JS ✅)
 Phase 4 — Cloud & AI             ░░░░░░░░░░    0%
-UI Polish                        ██████████  100%  (mobile-first, Ionicons, compact headers)
+UI Polish                        ██████████  100%  (mobile-first, compact IDE surfaces, reference navigation)
 SQLite Verification              ██████████  100%  (all 420 tests pass)
 
 Total: 33 / 50 tasks complete + full SQLite test suite + UI polish
@@ -97,12 +97,11 @@ Total: 33 / 50 tasks complete + full SQLite test suite + UI polish
 
 | # | Task | Priority | Status |
 |---|------|----------|--------|
-| 4.1 | AI SQL generation (Gemini/Claude) | 🟠 High | ⬜ Todo |
-| 4.2 | Cloud backup (Google Drive / iCloud) | 🟡 Medium | ⬜ Todo |
-| 4.3 | Multi-device sync | 🟡 Medium | ⬜ Todo |
-| 4.4 | Remote database connect (PostgreSQL/MySQL bridge) | 🔴 Critical | ⬜ Todo |
-| 4.5 | Schema diff / migration generator | 🟡 Medium | ⬜ Todo |
-| 4.6 | Query performance profiler | 🟡 Medium | ⬜ Todo |
+| 4.1 | Cloud backup (Google Drive / iCloud) | 🟡 Medium | ⬜ Todo |
+| 4.2 | Multi-device sync | 🟡 Medium | ⬜ Todo |
+| 4.3 | Remote database connect (PostgreSQL/MySQL bridge) | 🔴 Critical | ⬜ Todo |
+| 4.4 | Schema diff / migration generator | 🟡 Medium | ⬜ Todo |
+| 4.5 | Query performance profiler | 🟡 Medium | ⬜ Todo |
 
 ---
 

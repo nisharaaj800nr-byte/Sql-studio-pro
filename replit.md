@@ -32,6 +32,15 @@ pnpm --filter @workspace/api-server run dev
 The mobile app runs on port **18115** (Expo Metro bundler).
 Scan the QR code with Expo Go or use the web preview.
 
+### Replit workflows
+
+- **SQL Studio Pro Mobile** — `PORT=18115 pnpm --filter @workspace/mobile run dev`
+- **SQL Studio Pro API** — `PORT=8080 pnpm --filter @workspace/api-server run dev`
+
+The API is optional for the offline SQLite editor. If the imported project has no
+`node_modules` directory, run `pnpm install` once before starting the mobile
+workflow.
+
 ## Project Status
 
 - Phase 1 (Core Stability): ✅ 100%
@@ -56,3 +65,5 @@ Full details in `PROJECT_STATUS.md` and `TRACKER.md`.
 - All SQL should execute locally — no internet required for core features
 - Error hints, dialect warnings, and lint diagnostics in the editor
 - Professional design: dark GitHub-inspired theme, Ionicons, clean tab bar
+- Reference direction: compact IDE surfaces, dense database cards, and a dark
+  bottom navigation treatment inspired by the supplied SQL Studio Pro screens

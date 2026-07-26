@@ -58,7 +58,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { databases, isLoading, setActiveDbId } = useDatabases();
-  const { queryHistory, totalQueriesRun, setCurrentSql } = useEditor();
+  const { queryHistory, totalQueriesRun, savedQueries, setCurrentSql } = useEditor();
   const [totalTables, setTotalTables] = React.useState(0);
 
   React.useEffect(() => {
@@ -107,7 +107,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={[styles.logoMark, { backgroundColor: colors.primary }]}>
-            <Ionicons name="server" size={14} color="#fff" />
+            <Ionicons name="server" size={14} color={colors.primaryForeground} />
           </View>
           <View>
             <Text style={[styles.appName, { color: colors.foreground }]}>SQL Studio Pro</Text>
@@ -131,7 +131,8 @@ export default function DashboardScreen() {
         {[
           { label: 'Databases', value: databases.length, icon: 'server-outline' as const, color: colors.primary },
           { label: 'Tables', value: totalTables, icon: 'grid-outline' as const, color: colors.accent },
-          { label: 'Queries Run', value: formatNumber(totalQueriesRun), icon: 'flash-outline' as const, color: '#D2A8FF' },
+          { label: 'Queries', value: formatNumber(totalQueriesRun), icon: 'flash-outline' as const, color: colors.sqlFunction },
+          { label: 'Saved', value: savedQueries.length, icon: 'bookmark-outline' as const, color: colors.warning },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
@@ -160,7 +161,7 @@ export default function DashboardScreen() {
               ]}
             >
               <View style={[styles.quickIconWrap, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={22} color="#FFFFFF" />
+                <Ionicons name={item.icon} size={20} color={colors.primaryForeground} />
               </View>
               <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
             </Pressable>
