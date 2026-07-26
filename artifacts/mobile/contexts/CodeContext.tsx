@@ -5,7 +5,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type CodeLanguage = 'html' | 'css' | 'js';
+export type CodeLanguage = 'html' | 'css' | 'js' | 'react' | 'python';
 
 export interface ConsoleEntry {
   id: string;
@@ -132,6 +132,119 @@ document.body.innerHTML = \`
     </p>
   </div>
 \`;`,
+
+  python: `# Python via Pyodide (WebAssembly) — internet required on first run
+# Standard library is fully available. Use print() for output.
+# Install packages: import micropip; await micropip.install('package-name')
+
+import math
+
+print("🐍 Python is running!")
+print(f"π = {math.pi:.6f}")
+print(f"√144 = {math.sqrt(144):.0f}")
+print()
+
+# List comprehension
+squares = [x**2 for x in range(1, 11)]
+print("Squares 1–10:", squares)
+print("Sum:", sum(squares))
+print()
+
+# Dictionary + sorting
+fruits = {"apple": 5, "banana": 3, "cherry": 8, "mango": 6}
+print("Sorted by quantity:")
+for name, qty in sorted(fruits.items(), key=lambda x: x[1], reverse=True):
+    bar = "█" * qty
+    print(f"  {name:<10} {bar} ({qty})")
+print()
+
+# String methods
+text = "hello pyodide"
+print(f"Original : {text}")
+print(f"Title    : {text.title()}")
+print(f"Upper    : {text.upper()}")
+print(f"Reversed : {text[::-1]}")
+`,
+
+  react: `// React JSX — React 18 + Babel run in a sandboxed WebView
+// React is available globally — no imports needed
+// Define a component named App and it will auto-render
+
+function Counter() {
+  const [count, setCount] = React.useState(0);
+  return (
+    <div style={{ textAlign: 'center', padding: '16px 0' }}>
+      <p style={{ fontSize: 40, fontWeight: 700, color: '#2563eb', margin: '0 0 12px' }}>
+        {count}
+      </p>
+      <button
+        onClick={() => setCount(c => c + 1)}
+        style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 14, cursor: 'pointer', marginRight: 8 }}
+      >
+        +1
+      </button>
+      <button
+        onClick={() => setCount(0)}
+        style={{ background: '#6b7280', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 14, cursor: 'pointer' }}
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
+function App() {
+  const [items, setItems] = React.useState(['Learn React', 'Build UI', 'Ship it 🚀']);
+  const [input, setInput] = React.useState('');
+
+  const addItem = () => {
+    if (input.trim()) { setItems(p => [...p, input.trim()]); setInput(''); }
+  };
+
+  return (
+    <div style={{ fontFamily: 'system-ui', padding: 20, maxWidth: 380, margin: '0 auto' }}>
+      <h1 style={{ color: '#1e293b', marginBottom: 4 }}>React is working! ✓</h1>
+      <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 20 }}>
+        Edit this code and see live updates below.
+      </p>
+
+      <h3 style={{ color: '#374151', marginBottom: 8 }}>Counter</h3>
+      <Counter />
+
+      <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+
+      <h3 style={{ color: '#374151', marginBottom: 10 }}>Todo List</h3>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addItem()}
+          placeholder="Add item…"
+          style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none' }}
+        />
+        <button
+          onClick={addItem}
+          style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}
+        >
+          Add
+        </button>
+      </div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 14, color: '#374151' }}>{item}</span>
+            <button
+              onClick={() => setItems(p => p.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 16, cursor: 'pointer', padding: '0 4px' }}
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}`,
 };
 
 const CodeContext = createContext<CodeContextType | null>(null);
@@ -139,7 +252,7 @@ const CodeContext = createContext<CodeContextType | null>(null);
 let tabSeq = 10;
 function makeTab(language: CodeLanguage, code?: string): CodeTab {
   const id = `c${tabSeq++}`;
-  const labels: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JS' };
+  const labels: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JS', react: 'React', python: 'Python' };
   return { id, label: labels[language], language, code: code ?? DEFAULTS[language] };
 }
 

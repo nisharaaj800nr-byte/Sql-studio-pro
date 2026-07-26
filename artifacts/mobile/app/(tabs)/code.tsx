@@ -28,6 +28,24 @@ const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 // ── Per-language snippet bars ─────────────────────────────────────────────────
 
 const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
+  react: [
+    { label: 'useState',     text: 'const [value, setValue] = React.useState(initialValue);' },
+    { label: 'useEffect',    text: 'React.useEffect(() => {\n  // side effect\n  return () => { /* cleanup */ };\n}, [deps]);' },
+    { label: 'fn comp',      text: 'function MyComponent({ prop }) {\n  return (\n    <div>\n      {prop}\n    </div>\n  );\n}' },
+    { label: '=> comp',      text: 'const MyComponent = ({ prop }) => (\n  <div>{prop}</div>\n);' },
+    { label: 'onClick',      text: 'onClick={() => { }}' },
+    { label: 'onChange',     text: 'onChange={e => setValue(e.target.value)}' },
+    { label: 'map list',     text: '{items.map((item, i) => (\n  <div key={i}>{item}</div>\n))}' },
+    { label: 'ternary',      text: '{condition ? <Yes /> : <No />}' },
+    { label: 'style={{',     text: 'style={{ color: "#2563eb", fontSize: 16 }}' },
+    { label: 'useRef',       text: 'const ref = React.useRef(null);' },
+    { label: 'useMemo',      text: 'const result = React.useMemo(() => compute(a, b), [a, b]);' },
+    { label: 'useCallback',  text: 'const fn = React.useCallback(() => { }, [deps]);' },
+    { label: 'fragment',     text: 'return (\n  <>\n    <div>First</div>\n    <div>Second</div>\n  </>\n);' },
+    { label: '<input>',      text: '<input\n  value={value}\n  onChange={e => setValue(e.target.value)}\n  placeholder=""\n/>' },
+    { label: '<button>',     text: '<button\n  onClick={handleClick}\n  style={{ cursor: "pointer" }}\n>\n  Label\n</button>' },
+    { label: 'context',      text: 'const Ctx = React.createContext(null);\nfunction useCtx() { return React.useContext(Ctx); }' },
+  ],
   html: [
     { label: '<div>',    text: '<div></div>' },
     { label: '<p>',      text: '<p></p>' },
@@ -84,16 +102,18 @@ const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
 
 // ── Language config ───────────────────────────────────────────────────────────
 
-const LANG_LABELS: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript' };
+const LANG_LABELS: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript', react: 'React (JSX)' };
 const LANG_ICONS:  Record<CodeLanguage, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
-  html: 'language-html5',
-  css:  'language-css3',
-  js:   'language-javascript',
+  html:  'language-html5',
+  css:   'language-css3',
+  js:    'language-javascript',
+  react: 'react',
 };
 const LANG_COLORS: Record<CodeLanguage, string> = {
-  html: '#e34c26',
-  css:  '#264de4',
-  js:   '#f0db4f',
+  html:  '#e34c26',
+  css:   '#264de4',
+  js:    '#f0db4f',
+  react: '#61dafb',
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -116,8 +136,8 @@ export default function CodeScreen() {
   const language   = activeTab?.language ?? 'html';
   const code       = activeTab?.code ?? '';
   const snippets   = SNIPPETS[language];
-  // DOM tab only makes sense for HTML/CSS (those languages render a real DOM)
-  const showDomTab = language === 'html' || language === 'css';
+  // DOM tab makes sense for HTML, CSS, and React (all render real DOM trees)
+  const showDomTab = language === 'html' || language === 'css' || language === 'react';
 
   const handleCodeChange = useCallback((text: string) => {
     if (activeTab) updateTabCode(activeTab.id, text);
@@ -191,7 +211,7 @@ export default function CodeScreen() {
       {/* Add tab dropdown */}
       {showAddMenu && (
         <View style={[styles.addMenu, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.foreground }]}>
-          {(['html', 'css', 'js'] as CodeLanguage[]).map(lang => (
+          {(['html', 'css', 'js', 'react'] as CodeLanguage[]).map(lang => (
             <Pressable
               key={lang}
               onPress={() => handleAddTab(lang)}
@@ -257,7 +277,7 @@ export default function CodeScreen() {
               spellCheck={false}
               keyboardType="ascii-capable"
               selectionColor={colors.editorCaret}
-              placeholder={`<!-- Write ${LANG_LABELS[language]} here... -->`}
+              placeholder={language === 'react' ? `// Write React JSX here — define a function App() { return <div>...</div>; }` : `<!-- Write ${LANG_LABELS[language]} here... -->`}
               placeholderTextColor={colors.editorLineNumber}
               textAlignVertical="top"
             />

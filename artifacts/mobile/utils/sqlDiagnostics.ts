@@ -650,6 +650,13 @@ export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
       hint: 'Free up device storage space and try again.',
     };
   }
+  if (normalized.includes('wrong number of arguments') || normalized.includes('incorrect number of bindings') || normalized.includes('expected') && normalized.includes('arguments')) {
+    return {
+      title: 'Incorrect parameter count',
+      message: raw,
+      hint: 'Check the number of arguments passed to this SQLite function or the number of bound parameters (?)',
+    };
+  }
   if (normalized.includes('too many sql variables') || normalized.includes('too many variables')) {
     return {
       title: 'Too many bound parameters',

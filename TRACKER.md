@@ -56,6 +56,8 @@
 | T.1 | Full test coverage — `__tests__/sqlDiagnostics.test.ts` + `sqliteManager.test.ts` + `sqliteAdvanced.test.ts` (329 tests, 100% pass) | 2026-07-26 |
 | SETUP | Replit import setup — pnpm install, lib builds (api-zod, db), workflow configuration, both services verified running | 2026-07-26 |
 | SQLite-100% | SQLite module 100% complete — dialect detection fixed (@@ROWCOUNT, corruption messages), Settings/About shows live SQLite version + capabilities, ResultGrid truncation warning banner, SQLEditor Run button disabled on hard errors, 408 tests pass (was 329) | 2026-07-26 |
+| SPEC-GAPS | Spec gap fixes — `formatSQLiteError` "Incorrect parameter count" added; `sqliteSpecGaps.test.ts` added (corrupt DB recovery, offline persistence, wrong arg count); 420 tests pass; pnpm frozen-lockfile ✅, mobile typecheck ✅, API typecheck ✅, API build ✅, both workflows running | 2026-07-26 |
+| 3.5 | React (JSX) module 100% complete — `CodeLanguage` extended, `preprocessReact()` strips import/export, React 18 + Babel CDN sandbox, auto-renders App component, 16 snippets, DOM Inspector, offline fallback, typecheck ✅ 420 tests ✅ | 2026-07-26 |
 
 ---
 

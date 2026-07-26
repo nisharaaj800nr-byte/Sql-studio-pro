@@ -79,7 +79,7 @@ Total: 32 / 50 tasks complete + full SQLite test suite
 
 | # | Language | Features Needed | Status |
 |---|----------|-----------------|--------|
-| 3.1 | **SQLite** | Complete local execution, diagnostics, and device support | ✅ Done |
+| 3.1 | **SQLite** | Complete local execution, diagnostics, and device support | ✅ Done (420 tests, spec-verified 2026-07-26) |
 | 3.2 | **HTML** | Live preview + DOM inspector | ✅ Done |
 | 3.3 | **CSS** | Live preview + color picker + variables | ✅ Done |
 | 3.4 | **JavaScript** | In-app JS runtime + console output | ✅ Done |
