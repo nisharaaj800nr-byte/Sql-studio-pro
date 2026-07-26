@@ -25,6 +25,8 @@ export interface QueryResult {
   statementKinds?: SQLStatementKind[];
   /** true when the result was clipped to maxRows — more rows exist in DB */
   truncated?: boolean;
+  /** true when an explicit user transaction is open after this query executes */
+  inTransaction?: boolean;
 }
 
 export interface TableInfo {
@@ -105,6 +107,55 @@ export const SQLITE_FUNCTIONS: readonly string[] = [
 ];
 
 const dbCache: Record<string, SQLite.SQLiteDatabase> = {};
+
+/**
+ * Per-database transaction state.
+ *
+ * beginActive  — an explicit BEGIN was executed and has not yet been COMMIT/ROLLBACKed.
+ * savepointDepth — number of active SAVEPOINTs (can be > 0 even without a prior BEGIN,
+ *                  because SAVEPOINT outside a transaction implicitly starts one).
+ *
+ * isInTransaction = beginActive || savepointDepth > 0
+ *
+ * State is updated ONLY after the statement executes successfully so a failed
+ * BEGIN/SAVEPOINT never incorrectly marks the DB as in-transaction.
+ */
+interface TxState {
+  beginActive: boolean;
+  savepointDepth: number;
+}
+const txStateMap: Record<string, TxState> = {};
+
+function getTxState(dbId: string): TxState {
+  if (!txStateMap[dbId]) txStateMap[dbId] = { beginActive: false, savepointDepth: 0 };
+  return txStateMap[dbId];
+}
+
+function applyTransactionStatement(dbId: string, statement: string): void {
+  const upper = statement.trim().toUpperCase();
+  const state = getTxState(dbId);
+  if (/^BEGIN\b/i.test(upper)) {
+    state.beginActive = true;
+    // Do not reset savepointDepth — nested BEGIN is an error in SQLite, but keep safe
+  } else if (/^(COMMIT|END)\b/i.test(upper)) {
+    state.beginActive = false;
+    state.savepointDepth = 0;
+  } else if (/^ROLLBACK\b/i.test(upper)) {
+    if (/^ROLLBACK\s+TO\b/i.test(upper)) {
+      // ROLLBACK TO SAVEPOINT: stays in transaction, depth unchanged
+    } else {
+      // Bare ROLLBACK: ends everything
+      state.beginActive = false;
+      state.savepointDepth = 0;
+    }
+  } else if (/^SAVEPOINT\b/i.test(upper)) {
+    state.savepointDepth++;
+  } else if (/^RELEASE\b/i.test(upper)) {
+    // RELEASE collapses one savepoint level; if savepointDepth reaches 0 and there
+    // was no explicit BEGIN, the implicit transaction ends.
+    state.savepointDepth = Math.max(0, state.savepointDepth - 1);
+  }
+}
 
 /**
  * Safely escape a SQL identifier (table name, column name, index name).
@@ -228,6 +279,14 @@ export async function executeQuery(
         rowsAffected += result.changes;
         finalInsertId = result.lastInsertRowId ?? finalInsertId;
       }
+
+      // Update transaction state AFTER successful execution.
+      // A failed statement throws before reaching here, so state is never
+      // updated for commands that did not actually execute.
+      if (kind === 'transaction') {
+        applyTransactionStatement(dbId, statement);
+      }
+
       finalType = resultTypeForKind(kind);
     }
 
@@ -241,6 +300,7 @@ export async function executeQuery(
       statementCount: statements.length,
       statementKinds,
       truncated: truncated || undefined,
+      inTransaction: isInTransaction(dbId) || undefined,
     };
   } catch (e) {
     if (e instanceof DatabaseCorruptError) throw e;
@@ -411,6 +471,17 @@ export async function closeDatabase(dbId: string): Promise<void> {
     delete dbCache[dbId];
   }
   invalidateCompletionCache(dbId);
+  delete txStateMap[dbId];
+}
+
+/**
+ * Returns true when an explicit user transaction (or any open SAVEPOINT) is active
+ * for this database — i.e. there is uncommitted work the user needs to COMMIT or ROLLBACK.
+ */
+export function isInTransaction(dbId: string): boolean {
+  const state = txStateMap[dbId];
+  if (!state) return false;
+  return state.beginActive || state.savepointDepth > 0;
 }
 
 export async function getDatabaseStats(

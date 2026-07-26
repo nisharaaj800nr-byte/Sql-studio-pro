@@ -17,10 +17,10 @@ import {
   extractCTEAliases,
   extractTableAliases,
   getSQLSuggestions,
-  getStaticSQLDiagnostics,
+  getStaticSQLDiagnosticsWithOptions,
   type SQLDiagnostic,
 } from '@/utils/sqlDiagnostics';
-import { getSQLCompletionItems } from '@/utils/sqliteManager';
+import { getSQLCompletionItems, isInTransaction } from '@/utils/sqliteManager';
 import * as Haptics from 'expo-haptics';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -83,7 +83,9 @@ export function SQLEditor({
   const lineCount = value.split('\n').length;
   const fontSize = settings.fontSize;
   const lineHeight = Math.round(fontSize * 1.6);
-  const diagnostics = getStaticSQLDiagnostics(value);
+  const diagnostics = getStaticSQLDiagnosticsWithOptions(value, {
+    inTransaction: databaseId ? isInTransaction(databaseId) : false,
+  });
 
   // The word currently being typed (for suggestion filtering)
   const currentWord = value.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';

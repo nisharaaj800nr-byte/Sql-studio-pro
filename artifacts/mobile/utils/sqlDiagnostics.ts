@@ -384,8 +384,32 @@ export function getStaticSQLDiagnostics(sql: string): SQLDiagnostic[] {
       'ATTACH DATABASE opens an additional database file. Queries can then span both databases.'));
   }
 
-  // Query running in explicit transaction (heuristic: user wrote BEGIN previously — we can't detect state here, so skip)
+  return diagnostics;
+}
 
+/**
+ * Extended overload: accepts options to enable in-transaction warning.
+ * Pass { inTransaction: true } when the user has an open BEGIN.
+ */
+export function getStaticSQLDiagnosticsWithOptions(
+  sql: string,
+  options?: { inTransaction?: boolean },
+): SQLDiagnostic[] {
+  const diagnostics = getStaticSQLDiagnostics(sql);
+  if (!options?.inTransaction) return diagnostics;
+
+  const trimmed = sql.trim().toUpperCase();
+  // Don't warn about the transaction control statements themselves
+  const isTransactionControl = /^(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE|END)\b/.test(trimmed);
+  if (!isTransactionControl) {
+    diagnostics.push({
+      severity: 'info',
+      code: 'IN_TRANSACTION',
+      message: 'A transaction is open. This query will run inside the active BEGIN block.',
+      line: 1,
+      column: 1,
+    });
+  }
   return diagnostics;
 }
 

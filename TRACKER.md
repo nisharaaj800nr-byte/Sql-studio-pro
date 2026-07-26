@@ -12,10 +12,10 @@
 | Phase 2B — Table & Data | 6 | 6 | 100% |
 | Phase 2C — Schema & Viz | 4 | 4 | 100% |
 | Phase 2D — Transactions | 3 | 3 | 100% |
-| Phase 3 — Multi-Language | 13 | 1 | 8% |
+| Phase 3 — Multi-Language | 13 | 4 | 31% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
-| Testing | 4 | 1 | 25% |
-| **TOTAL** | **50** | **29** | **58%** |
+| Testing | 4 | 4 | 100% |
+| **TOTAL** | **50** | **32** | **64%** |
 
 ---
 
@@ -51,13 +51,16 @@
 | 2.18 | Transaction UI — TransactionBar (BEGIN/COMMIT/ROLLBACK) in editor | 2026-07-24 |
 | 2.19 | Explain plan view — ExplainPanel in editor (Ctrl+Shift+E / explain button) | 2026-07-24 |
 | 2.20 | Auto-backup — isDestructiveSQL detection + SQL export before DROP/DELETE/ALTER | 2026-07-24 |
+| 3.1v | SQLite verification — 319-test suite covering all query groups (JSON, math, FILTER, OVER, generated cols, WITHOUT ROWID, STRICT, transactions, upsert, diagnostics) | 2026-07-26 |
+| 3.1v | Transaction state tracking — `isInTransaction(dbId)`, `QueryResult.inTransaction`, `getStaticSQLDiagnosticsWithOptions` with in-transaction warning | 2026-07-26 |
+| T.1 | Full test coverage — `__tests__/sqlDiagnostics.test.ts` + `sqliteManager.test.ts` + `sqliteAdvanced.test.ts` (319 tests, 100% pass) | 2026-07-26 |
 
 ---
 
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_Phase 3.1 complete. Next: Phase 3.2 HTML/CSS/JS live preview._
+_Phase 3 multi-language support in progress. React/JSX live preview (3.5), Python via Pyodide (3.6) are next._
 
 ---
 
