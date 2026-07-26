@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
@@ -15,12 +15,24 @@ function TabIcon({
   focused,
   color,
   label,
+  useRobot,
 }: {
   name: IoniconName;
   focused: boolean;
   color: string;
   label: string;
+  useRobot?: boolean;
 }) {
+  const icon = useRobot ? (
+    <MaterialCommunityIcons
+      name={focused ? 'robot' : 'robot-outline'}
+      size={focused ? 20 : 22}
+      color={focused ? '#FFFFFF' : color}
+    />
+  ) : (
+    <Ionicons name={name} size={focused ? 20 : 22} color={focused ? '#FFFFFF' : color} />
+  );
+
   if (focused) {
     return (
       <View style={pill.container}>
@@ -30,7 +42,7 @@ function TabIcon({
           end={{ x: 1, y: 1 }}
           style={pill.gradient}
         >
-          <Ionicons name={name} size={20} color="#FFFFFF" />
+          {icon}
         </LinearGradient>
         <View style={pill.dot} />
       </View>
@@ -39,7 +51,7 @@ function TabIcon({
 
   return (
     <View style={pill.inactiveWrap}>
-      <Ionicons name={name} size={22} color={color} />
+      {icon}
     </View>
   );
 }
@@ -192,15 +204,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="ai"
         options={{
-          title: 'Settings',
+          title: 'SQL Assistant',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
-              name={focused ? 'settings' : 'settings-outline'}
+              name={'chatbubble-ellipses-outline'}
               focused={focused}
               color={color}
-              label="Settings"
+              label="SQL Assistant"
+              useRobot
             />
           ),
         }}
