@@ -51,9 +51,10 @@
 | 2.18 | Transaction UI — TransactionBar (BEGIN/COMMIT/ROLLBACK) in editor | 2026-07-24 |
 | 2.19 | Explain plan view — ExplainPanel in editor (Ctrl+Shift+E / explain button) | 2026-07-24 |
 | 2.20 | Auto-backup — isDestructiveSQL detection + SQL export before DROP/DELETE/ALTER | 2026-07-24 |
-| 3.1v | SQLite verification — 319-test suite covering all query groups (JSON, math, FILTER, OVER, generated cols, WITHOUT ROWID, STRICT, transactions, upsert, diagnostics) | 2026-07-26 |
+| 3.1v | SQLite verification — 329-test suite covering all query groups (JSON, math, FILTER, OVER, generated cols, WITHOUT ROWID, STRICT, transactions, upsert, diagnostics) | 2026-07-26 |
 | 3.1v | Transaction state tracking — `isInTransaction(dbId)`, `QueryResult.inTransaction`, `getStaticSQLDiagnosticsWithOptions` with in-transaction warning | 2026-07-26 |
-| T.1 | Full test coverage — `__tests__/sqlDiagnostics.test.ts` + `sqliteManager.test.ts` + `sqliteAdvanced.test.ts` (319 tests, 100% pass) | 2026-07-26 |
+| T.1 | Full test coverage — `__tests__/sqlDiagnostics.test.ts` + `sqliteManager.test.ts` + `sqliteAdvanced.test.ts` (329 tests, 100% pass) | 2026-07-26 |
+| SETUP | Replit import setup — pnpm install, lib builds (api-zod, db), workflow configuration, both services verified running | 2026-07-26 |
 
 ---
 

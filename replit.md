@@ -1,6 +1,6 @@
 # SQL Studio Pro
 
-A professional, offline-first, multi-language database IDE for mobile — built with Expo (React Native) and an Express API backend.
+A professional, offline-first SQLite 3 IDE for mobile — built with Expo (React Native) and an Express API backend.
 
 ## Stack
 
@@ -28,6 +28,18 @@ scripts/            — Post-merge and utility scripts
 
 ## How to run
 
+After importing or cloning, install dependencies first:
+
+```bash
+pnpm install
+```
+
+Then build the shared lib packages (required for API typecheck):
+
+```bash
+npx tsc --build lib/api-zod/tsconfig.json lib/db/tsconfig.json
+```
+
 Both services start automatically via the **Project** workflow (run button).
 
 | Service | Command | Port |
@@ -35,51 +47,42 @@ Both services start automatically via the **Project** workflow (run button).
 | Mobile (Expo web) | `pnpm --filter @workspace/mobile run dev` | 18115 |
 | API server | `pnpm --filter @workspace/api-server run dev` | 8080 |
 
-Install dependencies first if `node_modules` are missing:
+The mobile app is an Expo project — scan the QR code in Metro output to open in Expo Go on a physical device, or press `w` for the web version.
 
-```bash
-pnpm install
-```
-
-The mobile app is an Expo project — use the QR code in the Metro output to open it in Expo Go on a physical device, or press `w` to open the web version.
-
-## Project status
-
-- **Phase 1** (Core Stability) — ✅ Complete
-- **Phase 2** (Professional Features: autocomplete, multi-tab, ER diagram, CSV import, etc.) — ✅ Complete
-- **Phase 3** (Multi-Language Support: HTML ✅, CSS ✅, JS ✅; React/Python pending) — 🟡 In Progress
-- **Phase 4** (Cloud & AI) — ⬜ Not started
-
-See `PROJECT_STATUS.md` for the full task breakdown.
-
-## SQLite verification
-
-Complete SQLite 3 IDE verification was done against the spec in `attached_assets/`. All 10 sections pass:
-
-| Section | Status |
-|---------|--------|
-| Query types (SELECT, DML, CTE, JOIN, UNION, window, JSON, etc.) | ✅ |
-| Schema & DDL (CREATE/ALTER/DROP, constraints, generated cols, WITHOUT ROWID, STRICT) | ✅ |
-| SQLite commands (PRAGMA, EXPLAIN, VACUUM, ATTACH, SAVEPOINT, BEGIN variants) | ✅ |
-| Execution behavior (bound params, multi-statement, truncation, row limits) | ✅ |
-| Schema-aware autocomplete (tables, views, columns, CTEs, aliases, pragmas, functions) | ✅ |
-| Diagnostics (syntax errors, constraint violations, dialect detection, warnings) | ✅ |
-| Device-local / offline support (expo-sqlite, persistent files, no network required) | ✅ |
-| Query editor UX (syntax highlight, error line, warnings, run/format/explain controls) | ✅ |
-| Testing — 319 tests across 3 test files, all pass | ✅ |
-| Explicit limitation handling (non-SQLite dialect detection + clear warnings) | ✅ |
-
-### Run tests
+## Running tests
 
 ```bash
 cd artifacts/mobile && pnpm test
 ```
 
-### Known SQLite engine limitations (device-dependent)
+All 329 tests run in-process via Jest + sql.js (no device required).
 
-- `pow()`, `log()`, `log2()`, `log10()`, `trunc()` require `SQLITE_ENABLE_MATH_FUNCTIONS` — the app gracefully shows "no such function" if the device build omits this.
-- `json_*` functions require `SQLITE_ENABLE_JSON1` (compiled in on all modern iOS/Android SQLite builds).
-- STRICT tables require SQLite 3.37+; generated columns require SQLite 3.31+.
-- Window functions require SQLite 3.25+.
+## SQLite execution
+
+All core SQL runs **locally on the device** via `expo-sqlite`. The API server is optional (AI features, sync). No SQL is ever sent to the server.
+
+Supported:
+- All DML: SELECT, INSERT, UPDATE, DELETE, REPLACE, UPSERT (INSERT … ON CONFLICT)
+- All DDL: CREATE/ALTER/DROP TABLE, VIEW, INDEX, TRIGGER
+- CTEs (WITH, WITH RECURSIVE), window functions, JSON functions, aggregate FILTER
+- PRAGMA (read + write), EXPLAIN, EXPLAIN QUERY PLAN
+- Transactions: BEGIN DEFERRED/IMMEDIATE/EXCLUSIVE, COMMIT, ROLLBACK
+- SAVEPOINTs: SAVEPOINT, RELEASE, ROLLBACK TO
+- Maintenance: VACUUM, ANALYZE, REINDEX, ATTACH, DETACH
+- Multi-statement input (SQL-aware tokenizer, not a naive semicolon split)
+
+## Project status
+
+- **Phase 1** (Core Stability) — ✅ Complete
+- **Phase 2** (Professional Features) — ✅ Complete
+- **Phase 3** (Multi-Language: HTML ✅, CSS ✅, JS ✅) — 🟡 In Progress
+- **Phase 4** (Cloud & AI) — ⬜ Planned
+
+See `PROJECT_STATUS.md` and `TRACKER.md` for detailed task tracking.
 
 ## User preferences
+
+- Keep existing project structure and stack — do not restructure or migrate.
+- SQL execution must remain fully local/offline; the API server must never be required for core SQL.
+- Tests must run headlessly (Jest + sql.js mock, no device/emulator needed).
+- Documentation (TRACKER.md, PROJECT_STATUS.md, replit.md) must be updated after each significant milestone.
