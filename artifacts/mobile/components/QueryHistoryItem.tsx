@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { QueryHistoryEntry } from '@/contexts/EditorContext';
 import { truncateSQL, formatDuration, formatTimestamp } from '@/utils/formatters';
 
@@ -23,25 +23,23 @@ export function QueryHistoryItem({ entry, onPress, onDelete }: QueryHistoryItemP
       style={({ pressed }) => [
         styles.item,
         {
-          backgroundColor: pressed ? colors.secondary : colors.card,
+          backgroundColor: pressed ? colors.muted : colors.card,
           borderColor: colors.border,
           borderLeftColor: statusColor,
         },
       ]}
     >
-      <View style={styles.header}>
-        <View style={styles.statusRow}>
-          <MaterialIcons
-            name={entry.success ? 'check-circle' : 'error'}
-            size={14}
-            color={statusColor}
-          />
-          <Text style={[styles.dbName, { color: colors.mutedForeground }]}>{entry.databaseName}</Text>
-          <View style={styles.spacer} />
-          <Text style={[styles.time, { color: colors.mutedForeground }]}>
-            {formatTimestamp(entry.timestamp)}
-          </Text>
-        </View>
+      <View style={styles.statusRow}>
+        <Ionicons
+          name={entry.success ? 'checkmark-circle' : 'close-circle'}
+          size={13}
+          color={statusColor}
+        />
+        <Text style={[styles.dbName, { color: colors.mutedForeground }]}>{entry.databaseName}</Text>
+        <View style={styles.spacer} />
+        <Text style={[styles.time, { color: colors.mutedForeground }]}>
+          {formatTimestamp(entry.timestamp)}
+        </Text>
       </View>
 
       <Text
@@ -55,13 +53,13 @@ export function QueryHistoryItem({ entry, onPress, onDelete }: QueryHistoryItemP
         {entry.success ? (
           <>
             <View style={styles.metaItem}>
-              <MaterialIcons name="table-rows" size={11} color={colors.mutedForeground} />
+              <Ionicons name="grid-outline" size={11} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
                 {entry.rowCount} row{entry.rowCount !== 1 ? 's' : ''}
               </Text>
             </View>
             <View style={styles.metaItem}>
-              <MaterialIcons name="timer" size={11} color={colors.mutedForeground} />
+              <Ionicons name="time-outline" size={11} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
                 {formatDuration(entry.executionTime)}
               </Text>
@@ -75,7 +73,7 @@ export function QueryHistoryItem({ entry, onPress, onDelete }: QueryHistoryItemP
         <View style={styles.spacer} />
         {onDelete && (
           <Pressable onPress={onDelete} hitSlop={8}>
-            <MaterialCommunityIcons name="delete-outline" size={16} color={colors.mutedForeground} />
+            <Ionicons name="trash-outline" size={15} color={colors.mutedForeground} />
           </Pressable>
         )}
       </View>
@@ -86,18 +84,17 @@ export function QueryHistoryItem({ entry, onPress, onDelete }: QueryHistoryItemP
 const styles = StyleSheet.create({
   item: {
     marginHorizontal: 16,
-    marginVertical: 4,
+    marginVertical: 3,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderLeftWidth: 3,
-    padding: 12,
+    padding: 11,
     gap: 6,
   },
-  header: {},
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   dbName: { fontSize: 12, fontWeight: '500' },
   spacer: { flex: 1 },

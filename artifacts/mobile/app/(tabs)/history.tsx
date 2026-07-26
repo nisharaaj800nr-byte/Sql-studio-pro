@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEditor } from '@/contexts/EditorContext';
 import { QueryHistoryItem } from '@/components/QueryHistoryItem';
 import { EmptyState } from '@/components/EmptyState';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -57,16 +57,16 @@ export default function HistoryScreen() {
     ]);
   };
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>History</Text>
         {queryHistory.length > 0 && (
           <Pressable onPress={handleClear} hitSlop={10}>
-            <MaterialIcons name="delete-sweep" size={22} color={colors.destructive} />
+            <Ionicons name="trash-outline" size={20} color={colors.destructive} />
           </Pressable>
         )}
       </View>
@@ -74,7 +74,7 @@ export default function HistoryScreen() {
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <MaterialIcons name="search" size={17} color={colors.mutedForeground} />
+          <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -85,7 +85,7 @@ export default function HistoryScreen() {
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <MaterialIcons name="close" size={15} color={colors.mutedForeground} />
+              <Ionicons name="close-circle" size={15} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
@@ -150,11 +150,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   searchWrap: {
     paddingHorizontal: 16,
     paddingVertical: 8,

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { formatSQL } from '@/utils/sqlHighlight';
 import {
   extractCTEAliases,
@@ -180,7 +180,7 @@ export function SQLEditor({
       <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {databaseName ? (
           <View style={[styles.dbPill, { backgroundColor: (databaseColor ?? colors.primary) + '22' }]}>
-            <MaterialCommunityIcons name="database" size={12} color={databaseColor ?? colors.primary} />
+            <Ionicons name="server-outline" size={12} color={databaseColor ?? colors.primary} />
             <Text
               style={[styles.dbPillText, { color: databaseColor ?? colors.primary }]}
               numberOfLines={1}
@@ -194,10 +194,10 @@ export function SQLEditor({
 
         <View style={styles.toolbarRight}>
           <Pressable onPress={handleFormat} style={styles.iconBtn} hitSlop={8}>
-            <MaterialCommunityIcons name="code-braces" size={18} color={colors.mutedForeground} />
+            <Ionicons name="code-slash-outline" size={18} color={colors.mutedForeground} />
           </Pressable>
           <Pressable onPress={handleClear} style={styles.iconBtn} hitSlop={8}>
-            <MaterialIcons name="clear-all" size={18} color={colors.mutedForeground} />
+            <Ionicons name="close-circle-outline" size={18} color={colors.mutedForeground} />
           </Pressable>
           <Pressable
             onPress={handleRun}
@@ -332,15 +332,15 @@ function DiagnosticChip({
   const color = item.severity === 'error'
     ? colors.destructive
     : item.severity === 'warning'
-      ? colors.sqlString
+      ? '#FFA657'
       : colors.mutedForeground;
+  const iconName: React.ComponentProps<typeof Ionicons>['name'] =
+    item.severity === 'error' ? 'close-circle-outline'
+    : item.severity === 'warning' ? 'warning-outline'
+    : 'information-circle-outline';
   return (
-    <View style={[styles.diagnosticChip, { borderColor: color + '88', backgroundColor: color + '18' }]}>
-      <MaterialIcons
-        name={item.severity === 'error' ? 'error-outline' : item.severity === 'warning' ? 'warning-amber' : 'info-outline'}
-        size={14}
-        color={color}
-      />
+    <View style={[styles.diagnosticChip, { borderColor: color + '80', backgroundColor: color + '18' }]}>
+      <Ionicons name={iconName} size={13} color={color} />
       <Text style={[styles.diagnosticText, { color }]} numberOfLines={1}>
         Ln {item.line}:{item.column} · {item.message}
       </Text>

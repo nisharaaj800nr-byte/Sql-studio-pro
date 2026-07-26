@@ -1,14 +1,13 @@
 import React from 'react';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
-import { SymbolView } from 'expo-symbols';
 
-// iOS 26: NativeTabs with liquid glass. All 6 tabs registered.
+// iOS 26: NativeTabs with liquid glass
 function NativeTabLayout() {
   return (
     <NativeTabs>
@@ -40,6 +39,12 @@ function NativeTabLayout() {
   );
 }
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabIcon({ name, focused, color, size }: { name: IoniconName; focused: boolean; color: string; size: number }) {
+  return <Ionicons name={name} size={size - 1} color={color} />;
+}
+
 function ClassicTabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
@@ -51,19 +56,21 @@ function ClassicTabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        // headerShown: false — every screen owns its own header + safe-area padding
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: isIOS ? 'transparent' : 'transparent',
+          backgroundColor: 'transparent',
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           elevation: 0,
+          height: isIOS ? 80 : 58,
+          paddingBottom: isIOS ? 24 : 6,
+          paddingTop: 6,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={90}
+              intensity={95}
               tint={isDark ? 'dark' : 'light'}
               style={StyleSheet.absoluteFill}
             />
@@ -75,85 +82,57 @@ function ClassicTabLayout() {
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
-          marginTop: 1,
-          marginBottom: 2,
+          letterSpacing: 0.1,
         },
+        tabBarIconStyle: { marginBottom: -2 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView name="house.fill" tintColor={color} size={size - 2} />
-            ) : (
-              <MaterialCommunityIcons name="home" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="databases"
         options={{
           title: 'Databases',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView name="cylinder.fill" tintColor={color} size={size - 2} />
-            ) : (
-              <MaterialCommunityIcons name="database" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'server' : 'server-outline'} focused={focused} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="editor"
         options={{
           title: 'Editor',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView name="terminal" tintColor={color} size={size - 2} />
-            ) : (
-              <MaterialCommunityIcons name="code-braces" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'code-slash' : 'code-slash-outline'} focused={focused} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="code"
         options={{
           title: 'Code',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView
-                name="chevron.left.forwardslash.chevron.right"
-                tintColor={color}
-                size={size - 2}
-              />
-            ) : (
-              <MaterialCommunityIcons name="xml" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'layers' : 'layers-outline'} focused={focused} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView name="clock" tintColor={color} size={size - 2} />
-            ) : (
-              <MaterialIcons name="history" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'time' : 'time-outline'} focused={focused} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) =>
-            isIOS ? (
-              <SymbolView name="gearshape.fill" tintColor={color} size={size - 2} />
-            ) : (
-              <MaterialIcons name="settings" size={size} color={color} />
-            ),
+          tabBarIcon: ({ color, size, focused }) =>
+            <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} size={size} />,
         }}
       />
     </Tabs>

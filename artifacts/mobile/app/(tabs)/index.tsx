@@ -11,26 +11,27 @@ import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDatabases } from '@/contexts/DatabaseContext';
 import { useEditor } from '@/contexts/EditorContext';
-import { StatCard } from '@/components/StatCard';
 import { DatabaseCard } from '@/components/DatabaseCard';
 import { QueryHistoryItem } from '@/components/QueryHistoryItem';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { formatNumber } from '@/utils/formatters';
 import * as Haptics from 'expo-haptics';
 
 const QUICK_TEMPLATES = [
-  { label: 'List Tables', icon: 'table-multiple' as const, sql: "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY name;" },
-  { label: 'Table Count', icon: 'counter' as const, sql: "SELECT COUNT(*) as total_tables FROM sqlite_master WHERE type='table';" },
-  { label: 'DB Stats', icon: 'database-cog' as const, sql: 'PRAGMA database_list;\nPRAGMA page_count;\nPRAGMA page_size;' },
-  { label: 'Schema', icon: 'code-braces' as const, sql: "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;" },
+  { label: 'List Tables', icon: 'grid-outline' as const, sql: "SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY name;" },
+  { label: 'Table Count', icon: 'calculator-outline' as const, sql: "SELECT COUNT(*) as total_tables FROM sqlite_master WHERE type='table';" },
+  { label: 'DB Stats', icon: 'stats-chart-outline' as const, sql: 'PRAGMA database_list;\nPRAGMA page_count;\nPRAGMA page_size;' },
+  { label: 'Schema Info', icon: 'code-slash-outline' as const, sql: "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;" },
 ];
+
+const STAT_COLORS = ['#58A6FF', '#3FB950', '#D2A8FF'];
 
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { databases, isLoading, setActiveDbId } = useDatabases();
-  const { queryHistory, setCurrentSql, totalQueriesRun } = useEditor();
+  const { queryHistory, setCurrentSql } = useEditor();
   const [totalTables, setTotalTables] = React.useState(0);
 
   React.useEffect(() => {
@@ -59,7 +60,13 @@ export default function DashboardScreen() {
     router.push('/(tabs)/editor');
   };
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
+
+  const stats = [
+    { label: 'Databases', value: databases.length, icon: 'server-outline' as const, color: STAT_COLORS[0] },
+    { label: 'Tables', value: totalTables, icon: 'grid-outline' as const, color: STAT_COLORS[1] },
+    { label: 'Queries', value: formatNumber(queryHistory.length), icon: 'time-outline' as const, color: STAT_COLORS[2] },
+  ];
 
   return (
     <ScrollView
@@ -67,71 +74,76 @@ export default function DashboardScreen() {
       contentContainerStyle={[
         styles.content,
         {
-          paddingTop: insets.top + 16,
+          paddingTop: insets.top + 8,
           paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16,
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      {/* ── Compact Header ─────────────────────────────────────── */}
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={[styles.appName, { color: colors.foreground }]}>SQL Studio Pro</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Mobile database IDE
-          </Text>
+        <View style={styles.headerLeft}>
+          <View style={[styles.logoMark, { backgroundColor: colors.primary }]}>
+            <Ionicons name="server" size={13} color="#fff" />
+          </View>
+          <View>
+            <Text style={[styles.appName, { color: colors.foreground }]}>SQL Studio Pro</Text>
+            <Text style={[styles.appSub, { color: colors.mutedForeground }]}>SQLite local IDE</Text>
+          </View>
         </View>
         <Pressable
           onPress={() => router.push('/ai')}
-          style={[styles.aiBtn, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}
+          hitSlop={8}
+          style={[styles.headerBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <MaterialCommunityIcons name="robot-outline" size={20} color={colors.primary} />
+          <Ionicons name="sparkles-outline" size={17} color={colors.primary} />
         </Pressable>
       </View>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <StatCard icon="database" label="Databases" value={databases.length} color={colors.primary} />
-        <StatCard icon="table-multiple" label="Tables" value={totalTables} color={colors.accent} />
-        <StatCard icon="history" label="Queries" value={formatNumber(queryHistory.length)} color="#D2A8FF" />
+      {/* ── Stats row ──────────────────────────────────────────── */}
+      <View style={[styles.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {stats.map((s, i) => (
+          <React.Fragment key={s.label}>
+            {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+            </View>
+          </React.Fragment>
+        ))}
       </View>
 
-      {/* Quick Actions */}
+      {/* ── Quick Actions ───────────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
         <View style={styles.quickGrid}>
-          <Pressable
-            onPress={() => router.push('/(tabs)/databases')}
-            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.primary + (pressed ? '30' : '18'), borderColor: colors.primary + '35' }]}
-          >
-            <MaterialCommunityIcons name="database-plus" size={24} color={colors.primary} />
-            <Text style={[styles.quickLabel, { color: colors.primary }]}>New DB</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/(tabs)/editor')}
-            style={({ pressed }) => [styles.quickBtn, { backgroundColor: colors.accent + (pressed ? '30' : '18'), borderColor: colors.accent + '35' }]}
-          >
-            <MaterialCommunityIcons name="play-circle-outline" size={24} color={colors.accent} />
-            <Text style={[styles.quickLabel, { color: colors.accent }]}>Run SQL</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/(tabs)/history')}
-            style={({ pressed }) => [styles.quickBtn, { backgroundColor: '#D2A8FF' + (pressed ? '30' : '18'), borderColor: '#D2A8FF35' }]}
-          >
-            <MaterialIcons name="history" size={24} color="#D2A8FF" />
-            <Text style={[styles.quickLabel, { color: '#D2A8FF' }]}>History</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/ai')}
-            style={({ pressed }) => [styles.quickBtn, { backgroundColor: '#FFA657' + (pressed ? '30' : '18'), borderColor: '#FFA65735' }]}
-          >
-            <MaterialCommunityIcons name="robot-outline" size={24} color="#FFA657" />
-            <Text style={[styles.quickLabel, { color: '#FFA657' }]}>AI Help</Text>
-          </Pressable>
+          {[
+            { label: 'New DB', icon: 'add-circle-outline' as const, color: colors.primary, route: '/(tabs)/databases' as const },
+            { label: 'Run SQL', icon: 'play-circle-outline' as const, color: colors.accent, route: '/(tabs)/editor' as const },
+            { label: 'History', icon: 'time-outline' as const, color: STAT_COLORS[2], route: '/(tabs)/history' as const },
+            { label: 'AI Help', icon: 'sparkles-outline' as const, color: '#FFA657', route: '/ai' as const },
+          ].map(item => (
+            <Pressable
+              key={item.label}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route); }}
+              style={({ pressed }) => [
+                styles.quickBtn,
+                {
+                  backgroundColor: pressed ? item.color + '28' : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.quickIconWrap, { backgroundColor: item.color + '18' }]}>
+                <Ionicons name={item.icon} size={20} color={item.color} />
+              </View>
+              <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
-      {/* SQL Templates */}
+      {/* ── SQL Templates ───────────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SQL Templates</Text>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -148,22 +160,22 @@ export default function DashboardScreen() {
                 },
               ]}
             >
-              <View style={[styles.templateIcon, { backgroundColor: colors.primary + '20' }]}>
-                <MaterialCommunityIcons name={t.icon} size={16} color={colors.primary} />
+              <View style={[styles.templateIcon, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name={t.icon} size={15} color={colors.primary} />
               </View>
               <Text style={[styles.templateLabel, { color: colors.foreground }]}>{t.label}</Text>
-              <MaterialIcons name="north-east" size={13} color={colors.mutedForeground} />
+              <Ionicons name="arrow-forward" size={13} color={colors.mutedForeground} />
             </Pressable>
           ))}
         </View>
       </View>
 
-      {/* Recent Databases */}
+      {/* ── Recent Databases ────────────────────────────────────── */}
       {recentDBs.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Databases</Text>
-            <Pressable onPress={() => router.push('/(tabs)/databases')}>
+            <Pressable onPress={() => router.push('/(tabs)/databases')} hitSlop={8}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
             </Pressable>
           </View>
@@ -180,12 +192,12 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Recent Queries */}
+      {/* ── Recent Queries ──────────────────────────────────────── */}
       {recentHistory.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Queries</Text>
-            <Pressable onPress={() => router.push('/(tabs)/history')}>
+            <Pressable onPress={() => router.push('/(tabs)/history')} hitSlop={8}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
             </Pressable>
           </View>
@@ -203,21 +215,21 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ─────────────────────────────────────────── */}
       {databases.length === 0 && !isLoading && (
         <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '20' }]}>
-            <MaterialCommunityIcons name="database-plus" size={36} color={colors.primary} />
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '18' }]}>
+            <Ionicons name="server-outline" size={32} color={colors.primary} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Get Started</Text>
           <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-            Create your first SQLite database to start running queries.
+            Create your first SQLite database to start running queries locally.
           </Text>
           <Pressable
             onPress={() => router.push('/(tabs)/databases')}
             style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
           >
-            <MaterialCommunityIcons name="database-plus" size={16} color={colors.primaryForeground} />
+            <Ionicons name="add-circle-outline" size={16} color={colors.primaryForeground} />
             <Text style={[styles.emptyBtnText, { color: colors.primaryForeground }]}>Create Database</Text>
           </Pressable>
         </View>
@@ -229,35 +241,54 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 16 },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 14,
   },
-  headerText: { gap: 2 },
-  appName: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13 },
-  aiBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoMark: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+  },
+  appName: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  appSub: { fontSize: 11, marginTop: 1 },
+  headerBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
   },
 
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
+  // Stats card
+  statsCard: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  statItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statDivider: { width: StyleSheet.hairlineWidth, marginVertical: 12 },
+  statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  statLabel: { fontSize: 11, fontWeight: '500' },
 
   // Sections
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+  section: { marginBottom: 20 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8, letterSpacing: -0.1 },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   seeAll: { fontSize: 13, fontWeight: '600' },
 
@@ -267,12 +298,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 7,
   },
-  quickLabel: { fontSize: 11, fontWeight: '700' },
+  quickIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { fontSize: 11, fontWeight: '600', letterSpacing: -0.1 },
 
   // Card / template list
   card: {
@@ -284,13 +322,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 12,
+    paddingVertical: 12,
+    gap: 11,
   },
   templateIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -299,29 +337,30 @@ const styles = StyleSheet.create({
   // Empty state
   emptyCard: {
     padding: 28,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     gap: 10,
+    marginTop: 8,
   },
   emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
-  emptyTitle: { fontSize: 20, fontWeight: '700' },
-  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptyDesc: { fontSize: 14, textAlign: 'center', lineHeight: 21, maxWidth: 260 },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    marginTop: 6,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 11,
   },
-  emptyBtnText: { fontSize: 15, fontWeight: '700' },
+  emptyBtnText: { fontSize: 14, fontWeight: '700' },
 });

@@ -1,5 +1,5 @@
 /**
- * SQL Editor Screen
+ * SQL Editor Screen — Mobile-first, professional layout
  * Tasks 2.2 (multi-tab), 2.3 (export), 2.4 (saved queries), 2.5 (kb shortcuts),
  * 2.18 (transaction UI), 2.19 (explain plan), 2.20 (auto-backup)
  */
@@ -25,7 +25,7 @@ import { useEditor } from '@/contexts/EditorContext';
 import { SQLEditor } from '@/components/SQLEditor';
 import { ResultGrid } from '@/components/ResultGrid';
 import { EmptyState } from '@/components/EmptyState';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -60,7 +60,6 @@ function EditorInner() {
     deleteSavedQuery,
   } = useEditor();
 
-  // ── Multi-tab (2.2) ────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<EditorTab[]>([
     { id: 't0', label: 'Query 1', sql: "-- Welcome to SQL Studio Pro\nSELECT * FROM sqlite_master WHERE type = 'table';" },
   ]);
@@ -89,22 +88,18 @@ function EditorInner() {
     }
   };
 
-  // ── Modal state ────────────────────────────────────────────────────────────
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSavedPanel, setShowSavedPanel] = useState(false);
 
-  // ── Transaction state (2.18) ───────────────────────────────────────────────
   const [inTransaction, setInTransaction] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
 
-  // ── Explain state (2.19) ──────────────────────────────────────────────────
   const [explainRows, setExplainRows] = useState<ExplainRow[] | null>(null);
   const [showExplain, setShowExplain] = useState(false);
 
   const activeDb = databases.find(d => d.id === activeDbId);
 
-  // ── Keyboard shortcuts (2.5) ──────────────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const handler = (e: KeyboardEvent) => {
@@ -140,7 +135,6 @@ function EditorInner() {
     );
   };
 
-  // ── Task 2.20: Auto-backup before destructive SQL ──────────────────────────
   const runWithAutoBackup = useCallback(async () => {
     if (!activeDbId || !activeDb) { handlePickDatabase(); return; }
 
@@ -181,7 +175,6 @@ function EditorInner() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  // ── Task 2.19: Explain query plan ─────────────────────────────────────────
   const handleExplain = useCallback(async () => {
     if (!activeDbId) { handlePickDatabase(); return; }
     const rows = await explainQueryPlan(activeDbId, currentSql);
@@ -189,7 +182,6 @@ function EditorInner() {
     setShowExplain(true);
   }, [activeDbId, currentSql]);
 
-  // ── Task 2.18: Transaction helpers ────────────────────────────────────────
   const handleBegin = async () => {
     if (!activeDbId) { handlePickDatabase(); return; }
     setTxLoading(true);
@@ -217,70 +209,74 @@ function EditorInner() {
     else { setInTransaction(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); }
   };
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
 
-      {/* ── Query tab bar (2.2) ──────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-        contentContainerStyle={styles.tabBarContent}
-      >
-        {tabs.map(tab => (
+      {/* ── Combined header: DB selector + query tabs + actions ─── */}
+      <View style={[styles.topArea, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+
+        {/* DB selector row */}
+        <View style={styles.dbRow}>
           <Pressable
-            key={tab.id}
-            onPress={() => setActiveTabId(tab.id)}
-            style={[
-              styles.tab,
-              tab.id === activeTabId && { borderBottomWidth: 2, borderBottomColor: colors.primary },
-            ]}
+            onPress={handlePickDatabase}
+            style={[styles.dbSelector, { backgroundColor: colors.muted, borderColor: colors.border }]}
           >
-            <Text style={[styles.tabLabel, { color: tab.id === activeTabId ? colors.foreground : colors.mutedForeground }]}>
-              {tab.label}
+            <Ionicons name="server-outline" size={14} color={activeDb?.color ?? colors.mutedForeground} />
+            <Text style={[styles.dbSelectorText, { color: activeDb ? colors.foreground : colors.mutedForeground }]} numberOfLines={1}>
+              {activeDb ? activeDb.name : 'Select database…'}
             </Text>
-            {tabs.length > 1 && (
-              <Pressable onPress={() => closeTab(tab.id)} hitSlop={6}>
-                <MaterialIcons name="close" size={12} color={colors.mutedForeground} />
-              </Pressable>
-            )}
+            <Ionicons name="chevron-down" size={12} color={colors.mutedForeground} />
           </Pressable>
-        ))}
-        <Pressable onPress={addTab} style={styles.addTabBtn} hitSlop={8}>
-          <MaterialIcons name="add" size={18} color={colors.mutedForeground} />
-        </Pressable>
-      </ScrollView>
 
-      {/* ── Database selector + icon bar ─────────────────────────────────── */}
-      <View style={[styles.topBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Pressable
-          onPress={handlePickDatabase}
-          style={[styles.dbSelector, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          <Pressable onPress={() => setShowSavedPanel(true)} style={styles.iconBtn} hitSlop={8}>
+            <Ionicons name="bookmark-outline" size={17} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable onPress={handleExplain} style={styles.iconBtn} hitSlop={8}>
+            <Ionicons name="git-network-outline" size={17} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable onPress={() => router.push('/(tabs)/history')} style={styles.iconBtn} hitSlop={8}>
+            <Ionicons name="time-outline" size={17} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable onPress={() => setShowSaveModal(true)} style={styles.iconBtn} hitSlop={8}>
+            <Ionicons name="save-outline" size={17} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
+
+        {/* Tab bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabBar}
+          contentContainerStyle={styles.tabBarContent}
         >
-          <MaterialCommunityIcons name="database" size={15} color={activeDb?.color ?? colors.mutedForeground} />
-          <Text style={[styles.dbSelectorText, { color: activeDb ? colors.foreground : colors.mutedForeground }]} numberOfLines={1}>
-            {activeDb ? activeDb.name : 'Select database…'}
-          </Text>
-          <MaterialIcons name="unfold-more" size={14} color={colors.mutedForeground} />
-        </Pressable>
-
-        <Pressable onPress={() => setShowSavedPanel(true)} style={styles.iconBtn} hitSlop={8}>
-          <MaterialIcons name="bookmark-border" size={19} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable onPress={handleExplain} style={styles.iconBtn} hitSlop={8}>
-          <MaterialIcons name="account-tree" size={19} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable onPress={() => router.push('/(tabs)/history')} style={styles.iconBtn} hitSlop={8}>
-          <MaterialIcons name="history" size={19} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable onPress={() => setShowSaveModal(true)} style={styles.iconBtn} hitSlop={8}>
-          <MaterialIcons name="save-alt" size={19} color={colors.mutedForeground} />
-        </Pressable>
+          {tabs.map(tab => (
+            <Pressable
+              key={tab.id}
+              onPress={() => setActiveTabId(tab.id)}
+              style={[
+                styles.tab,
+                tab.id === activeTabId && [styles.tabActive, { borderBottomColor: colors.primary }],
+              ]}
+            >
+              <Text style={[styles.tabLabel, { color: tab.id === activeTabId ? colors.foreground : colors.mutedForeground }]}>
+                {tab.label}
+              </Text>
+              {tabs.length > 1 && (
+                <Pressable onPress={() => closeTab(tab.id)} hitSlop={6}>
+                  <Ionicons name="close" size={11} color={colors.mutedForeground} />
+                </Pressable>
+              )}
+            </Pressable>
+          ))}
+          <Pressable onPress={addTab} style={styles.addTabBtn} hitSlop={8}>
+            <Ionicons name="add" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        </ScrollView>
       </View>
 
-      {/* ── Editor ────────────────────────────────────────────────────────── */}
+      {/* ── Editor ────────────────────────────────────────────────── */}
       <View style={styles.editorContainer}>
         <SQLEditor
           value={currentSql}
@@ -293,7 +289,7 @@ function EditorInner() {
         />
       </View>
 
-      {/* ── Transaction bar (2.18) ─────────────────────────────────────────── */}
+      {/* ── Transaction bar ─────────────────────────────────────────── */}
       <TransactionBar
         inTransaction={inTransaction}
         isLoading={txLoading}
@@ -302,14 +298,14 @@ function EditorInner() {
         onRollback={handleRollback}
       />
 
-      {/* ── Resize handle ─────────────────────────────────────────────────── */}
+      {/* ── Divider ──────────────────────────────────────────────────── */}
       <View style={[styles.divider, { backgroundColor: colors.border }]}>
-        <View style={[styles.dividerHandle, { backgroundColor: colors.card }]}>
-          <MaterialIcons name="drag-handle" size={16} color={colors.mutedForeground} />
+        <View style={[styles.dividerHandle, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="remove" size={16} color={colors.mutedForeground} />
         </View>
       </View>
 
-      {/* ── Results / Explain plan ─────────────────────────────────────────── */}
+      {/* ── Results / Explain plan ────────────────────────────────────── */}
       <View style={[styles.resultsContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + TAB_BAR_HEIGHT }]}>
         {showExplain && explainRows ? (
           <ExplainPanel rows={explainRows} onClose={() => setShowExplain(false)} colors={colors} />
@@ -324,7 +320,7 @@ function EditorInner() {
         )}
       </View>
 
-      {/* ── Modals ──────────────────────────────────────────────────────────── */}
+      {/* ── Modals ────────────────────────────────────────────────────── */}
       <InputModal
         visible={showSaveModal}
         title="Save Query"
@@ -369,10 +365,10 @@ function ExplainPanel({
   return (
     <View style={{ flex: 1 }}>
       <View style={[epStyles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <MaterialIcons name="account-tree" size={15} color={colors.primary} />
+        <Ionicons name="git-network-outline" size={14} color={colors.primary} />
         <Text style={[epStyles.title, { color: colors.foreground }]}>EXPLAIN QUERY PLAN</Text>
         <Pressable onPress={onClose} hitSlop={8} style={{ marginLeft: 'auto' }}>
-          <MaterialIcons name="close" size={17} color={colors.mutedForeground} />
+          <Ionicons name="close" size={16} color={colors.mutedForeground} />
         </Pressable>
       </View>
       <ScrollView style={{ flex: 1 }}>
@@ -395,7 +391,7 @@ function ExplainPanel({
 
 const epStyles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  title: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  title: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
   empty: { padding: 32, alignItems: 'center' },
   row: { padding: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   detail: { fontSize: 13, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
@@ -415,29 +411,64 @@ export default function EditorScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tabBar: { borderBottomWidth: StyleSheet.hairlineWidth, maxHeight: 40, flexGrow: 0 },
-  tabBarContent: { paddingHorizontal: 4, alignItems: 'center' },
-  tab: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 10, marginRight: 2,
+
+  // Combined top area (db selector + tabs)
+  topArea: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  tabLabel: { fontSize: 12, fontWeight: '500' },
-  addTabBtn: { padding: 8 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10,
-    paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, gap: 4,
+  dbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 7,
+    paddingBottom: 4,
+    gap: 3,
   },
   dbSelector: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  dbSelectorText: { flex: 1, fontSize: 13, fontWeight: '500' },
-  iconBtn: { padding: 6 },
+  dbSelectorText: { flex: 1, fontSize: 12, fontWeight: '500' },
+  iconBtn: { padding: 5 },
+
+  tabBar: { maxHeight: 34, flexGrow: 0 },
+  tabBarContent: { paddingHorizontal: 6, alignItems: 'center', gap: 2 },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {},
+  tabLabel: { fontSize: 12, fontWeight: '500' },
+  addTabBtn: { padding: 7 },
+
   editorContainer: { flex: 1 },
-  divider: { height: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
   dividerHandle: {
-    position: 'absolute', borderRadius: 10, paddingHorizontal: 14,
-    paddingVertical: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1,
+    position: 'absolute',
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   resultsContainer: { flex: 1 },
 });

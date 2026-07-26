@@ -16,7 +16,7 @@ import { DatabaseCard } from '@/components/DatabaseCard';
 import { EmptyState } from '@/components/EmptyState';
 import { FAB } from '@/components/FAB';
 import { InputModal } from '@/components/InputModal';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getTables, getDatabaseStats } from '@/utils/sqliteManager';
 import * as Haptics from 'expo-haptics';
@@ -126,26 +126,26 @@ export default function DatabasesScreen() {
     db.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 83 : 60;
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
         <Pressable
           onPress={handleCreate}
           hitSlop={10}
-          style={[styles.addBtn, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}
+          style={[styles.addBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
         >
-          <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+          <Ionicons name="add" size={18} color="#fff" />
         </Pressable>
       </View>
 
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <MaterialIcons name="search" size={17} color={colors.mutedForeground} />
+          <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -156,7 +156,7 @@ export default function DatabasesScreen() {
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <MaterialIcons name="close" size={15} color={colors.mutedForeground} />
+              <Ionicons name="close-circle" size={15} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
@@ -227,18 +227,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   addBtn: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   searchWrap: {
     paddingHorizontal: 16,
@@ -250,10 +249,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     gap: 8,
   },
-  searchText: { flex: 1, fontSize: 15 },
+  searchText: { flex: 1, fontSize: 14 },
   list: { paddingTop: 8, paddingHorizontal: 16 },
 });
