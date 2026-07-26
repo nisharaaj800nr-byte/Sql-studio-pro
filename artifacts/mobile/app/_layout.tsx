@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { CodeProvider } from '@/contexts/CodeContext';
 import { DatabaseProvider } from '@/contexts/DatabaseContext';
 import { EditorProvider } from '@/contexts/EditorContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
@@ -55,7 +56,9 @@ export default function RootLayout() {
               <SettingsProvider>
                 <DatabaseProvider>
                   <EditorProvider>
-                    <RootLayoutNav />
+                    <CodeProvider>
+                      <RootLayoutNav />
+                    </CodeProvider>
                   </EditorProvider>
                 </DatabaseProvider>
               </SettingsProvider>

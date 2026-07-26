@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
@@ -18,6 +19,10 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Home</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="code">
+        <Icon sf={{ default: 'chevron.left.forwardslash.chevron.right', selected: 'chevron.left.forwardslash.chevron.right' }} />
+        <Label>Code</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -70,6 +75,18 @@ function ClassicTabLayout() {
               <SymbolView name="house" tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="code"
+        options={{
+          title: 'Code',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chevron.left.forwardslash.chevron.right" tintColor={color} size={24} />
+            ) : (
+              <MaterialCommunityIcons name="code-braces" size={22} color={color} />
             ),
         }}
       />

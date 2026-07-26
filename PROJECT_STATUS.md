@@ -12,7 +12,7 @@ Phase 2 — Professional Features  ██████████  100%  (20/20)
 Phase 3 — Multi-Language Support ██░░░░░░░░  13%  (SQLite complete ✅)
 Phase 4 — Cloud & AI             ░░░░░░░░░░   0%
 
-Total: 28 / 50 tasks complete
+Total: 32 / 50 tasks complete
 ```
 
 ---
@@ -79,9 +79,9 @@ Total: 28 / 50 tasks complete
 | # | Language | Features Needed | Status |
 |---|----------|-----------------|--------|
 | 3.1 | **SQLite** | Complete local execution, diagnostics, and device support | ✅ Done |
-| 3.2 | **HTML** | Live preview + DOM inspector | ⬜ Todo |
-| 3.3 | **CSS** | Live preview + color picker + variables | ⬜ Todo |
-| 3.4 | **JavaScript** | In-app JS runtime + console output | ⬜ Todo |
+| 3.2 | **HTML** | Live preview + DOM inspector | ✅ Done |
+| 3.3 | **CSS** | Live preview + color picker + variables | ✅ Done |
+| 3.4 | **JavaScript** | In-app JS runtime + console output | ✅ Done |
 | 3.5 | **React** | JSX support + component live preview | ⬜ Todo |
 | 3.6 | **Python** | Pyodide (WASM) — offline Python execution | ⬜ Todo |
 | 3.7 | **Java** | Cheerpj (WASM) — Java execution in browser | ⬜ Todo |
