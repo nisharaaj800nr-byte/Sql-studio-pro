@@ -1,0 +1,44 @@
+Kya ho gaya (29/50 tasks)
+PSabse practical next step: HTML/CSS/JS live preview (Task 3.2–3.4) — yeh teen saath implement ho sakte hain ek WebView-based sandbox meinry memory limit, corrupt DB handling
+Phase 2 — Professional Features (100% complete)
+Autocomplete, multi-tab editor, CSV/JSON/SQL export, saved queries/snippets, keyboard shortcuts, SQL formatter, execution time display
+Row add/edit/delete UI, Create Table UI, CSV/SQL import, BLOB viewer, result virtualization, column sorting
+ER Diagram, index manager, FK visualizer, DB stats dashboard
+Transaction UI (BEGIN/COMMIT/ROLLBACK), EXPLAIN plan view, auto-backup before destructive queries
+Phase 3.1 — SQLite Engine Complete (abhi abhi done ✅)
+90+ functions, 50+ PRAGMAs autocomplete mein
+CTE alias + table alias detection live SQL se
+SAVEPOINT support (BEGIN/RELEASE/ROLLBACK TO)
+Dialect warnings (SHOW TABLES, DESCRIBE, AUTO_INCREMENT, ILIKE, ROWNUM, etc.)
+Better syntax highlighting (blob literals, hex, bound params, window function keywords)
+216 tests — sab pass
+Testing — T.1 done ✅
+sqliteManager.test.ts (92 tests) + sqlDiagnostics.test.ts (124 tests)
+⬜ Kya bacha hai (21/50 tasks)
+Phase 3 — Multi-Language (12 remaining)
+#	Kya	Difficulty
+3.2	HTML live preview + DOM inspector	Medium
+3.3	CSS live preview + color picker	Medium
+3.4	JavaScript runtime + console output	Medium
+3.5	React/JSX component preview	Hard
+3.6	Python (Pyodide WASM) — offline	Hard
+3.7	Java (CheerpJ WASM)	Very Hard
+3.8	Go (TinyGo WASM)	Hard
+3.9	Unified Monaco-based editor	Hard
+3.10	WASM runtime loader/manager	Hard
+3.11	Unified console/output panel	Medium
+3.12	Virtual file system per language	Hard
+3.13	Language-specific syntax highlighting	Medium
+Phase 4 — Cloud & AI (6 remaining)
+#	Kya
+4.1	AI integration (OpenAI/Gemini) — natural language to SQL
+4.2	Remote DB connections (PostgreSQL, MySQL)
+4.3	API server auth (JWT/session)
+4.4	Cloud sync — query history
+4.5	SSH tunnel for remote DBs
+4.6	Share query / collaborate
+Testing (3 remaining)
+T.2 — Context unit tests (Database, Editor, Settings)
+T.3 — API route integration tests
+T.4 — E2E tests (core user flows)
+Sabse practical next step: HTML/CSS/JS live preview (Task 3.2–3.4) — yeh teen saath implement ho sakte hain ek WebView-based sandbox mein.
