@@ -542,15 +542,7 @@ function DatabaseDetailInner() {
   return (
     <View style={s.root}>
       {/* Stack.Screen — sets system nav bar title */}
-      <Stack.Screen
-        options={{
-          title: `database/[id]`,
-          headerStyle: { backgroundColor: C.bg },
-          headerTintColor: C.textPrimary,
-          headerShadowVisible: false,
-          headerRight: () => null,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       {/* ── Premium sub-header ── */}
       <View style={s.subHeader}>
