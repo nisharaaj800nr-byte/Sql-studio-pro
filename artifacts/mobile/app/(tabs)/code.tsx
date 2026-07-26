@@ -1,8 +1,9 @@
 /**
- * Code Editor Screen — Phase 3.2 (HTML), 3.3 (CSS), 3.4 (JS)
- * Live preview with WebView sandbox + Console panel for JS output.
+ * Code Editor Screen — Premium redesign matching reference image exactly.
+ * Layout: Header → File tabs → Syntax-highlighted editor → Code/Preview/Output
+ * switcher → Live preview card.
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -14,64 +15,50 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useColors } from '@/hooks/useColors';
 import { useCode, type CodeLanguage, type ConsoleEntry } from '@/contexts/CodeContext';
 import { WebPreview } from '@/components/WebPreview';
 import { ConsolePanel } from '@/components/ConsolePanel';
-import { ColorPickerModal } from '@/components/ColorPickerModal';
-import { DOMInspector, type DOMNode } from '@/components/DOMInspector';
 
-const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+// ── Constants ─────────────────────────────────────────────────────────────────
+const MONO   = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const BG     = '#090D12';
+const CARD   = '#0D1117';
+const MUTED  = '#111820';
+const BORDER = '#21262D';
+const FG     = '#E6EDF3';
+const DIM    = '#7D8590';
+const ACCENT = '#4B7BFF';
 
-// ── Per-language snippet bars ─────────────────────────────────────────────────
+// ── Per-language config ───────────────────────────────────────────────────────
+const LANG_COLOR: Record<CodeLanguage, string> = {
+  html: '#E44D26', css: '#264DE4', js: '#F0DB4F',
+  react: '#61DAFB', python: '#3776AB',
+};
+const LANG_ICON: Record<CodeLanguage, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  html: 'language-html5', css: 'language-css3', js: 'language-javascript',
+  react: 'react', python: 'language-python',
+};
+const LANG_FILE: Record<CodeLanguage, string> = {
+  html: 'index.html', css: 'styles.css', js: 'script.js',
+  react: 'App.jsx', python: 'main.py',
+};
+const LANG_LABEL: Record<CodeLanguage, string> = {
+  html: 'HTML', css: 'CSS', js: 'JavaScript', react: 'React', python: 'Python',
+};
 
+// ── Snippet bars ──────────────────────────────────────────────────────────────
 const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
-  python: [
-    { label: 'print',   text: 'print()' },
-    { label: 'def',     text: 'def name():\n    ' },
-    { label: 'class',   text: 'class Name:\n    def __init__(self):\n        ' },
-    { label: 'if',      text: 'if condition:\n    ' },
-    { label: 'for',     text: 'for item in items:\n    ' },
-    { label: 'while',   text: 'while condition:\n    ' },
-    { label: 'import',  text: 'import ' },
-    { label: 'from',    text: 'from module import ' },
-    { label: 'try',     text: 'try:\n    \nexcept Exception as e:\n    print(e)' },
-    { label: 'list',    text: '[item for item in iterable]' },
-    { label: 'dict',    text: '{key: value for key, value in items.items()}' },
-    { label: 'lambda',  text: 'lambda x: x' },
-    { label: 'with',    text: 'with open("file.txt") as f:\n    ' },
-    { label: 'assert',  text: 'assert condition, "message"' },
-  ],
-  react: [
-    { label: 'useState',     text: 'const [value, setValue] = React.useState(initialValue);' },
-    { label: 'useEffect',    text: 'React.useEffect(() => {\n  // side effect\n  return () => { /* cleanup */ };\n}, [deps]);' },
-    { label: 'fn comp',      text: 'function MyComponent({ prop }) {\n  return (\n    <div>\n      {prop}\n    </div>\n  );\n}' },
-    { label: '=> comp',      text: 'const MyComponent = ({ prop }) => (\n  <div>{prop}</div>\n);' },
-    { label: 'onClick',      text: 'onClick={() => { }}' },
-    { label: 'onChange',     text: 'onChange={e => setValue(e.target.value)}' },
-    { label: 'map list',     text: '{items.map((item, i) => (\n  <div key={i}>{item}</div>\n))}' },
-    { label: 'ternary',      text: '{condition ? <Yes /> : <No />}' },
-    { label: 'style={{',     text: 'style={{ color: "#2563eb", fontSize: 16 }}' },
-    { label: 'useRef',       text: 'const ref = React.useRef(null);' },
-    { label: 'useMemo',      text: 'const result = React.useMemo(() => compute(a, b), [a, b]);' },
-    { label: 'useCallback',  text: 'const fn = React.useCallback(() => { }, [deps]);' },
-    { label: 'fragment',     text: 'return (\n  <>\n    <div>First</div>\n    <div>Second</div>\n  </>\n);' },
-    { label: '<input>',      text: '<input\n  value={value}\n  onChange={e => setValue(e.target.value)}\n  placeholder=""\n/>' },
-    { label: '<button>',     text: '<button\n  onClick={handleClick}\n  style={{ cursor: "pointer" }}\n>\n  Label\n</button>' },
-    { label: 'context',      text: 'const Ctx = React.createContext(null);\nfunction useCtx() { return React.useContext(Ctx); }' },
-  ],
   html: [
     { label: '<div>',    text: '<div></div>' },
     { label: '<p>',      text: '<p></p>' },
     { label: '<span>',   text: '<span></span>' },
     { label: '<a>',      text: '<a href=""></a>' },
     { label: '<img>',    text: '<img src="" alt="">' },
-    { label: '<ul>',     text: '<ul>\n  <li></li>\n  <li></li>\n</ul>' },
-    { label: '<ol>',     text: '<ol>\n  <li></li>\n  <li></li>\n</ol>' },
-    { label: '<table>',  text: '<table>\n  <thead><tr><th>Col 1</th><th>Col 2</th></tr></thead>\n  <tbody><tr><td></td><td></td></tr></tbody>\n</table>' },
-    { label: '<form>',   text: '<form>\n  <input type="text" name="" placeholder="">\n  <button type="submit">Submit</button>\n</form>' },
+    { label: '<ul>',     text: '<ul>\n  <li></li>\n</ul>' },
+    { label: '<form>',   text: '<form>\n  <input type="text">\n  <button type="submit">Submit</button>\n</form>' },
     { label: '<input>',  text: '<input type="text" placeholder="">' },
     { label: '<button>', text: '<button onclick=""></button>' },
     { label: '<style>',  text: '<style>\n  \n</style>' },
@@ -84,92 +71,462 @@ const SNIPPETS: Record<CodeLanguage, Array<{ label: string; text: string }>> = {
     { label: 'grid',       text: 'display: grid;\ngrid-template-columns: repeat(3, 1fr);\ngap: 16px;' },
     { label: '@media',     text: '@media (max-width: 768px) {\n  \n}' },
     { label: 'transition', text: 'transition: all 0.3s ease;' },
-    { label: 'animation',  text: 'animation: fadeIn 0.5s ease-in;' },
     { label: 'border-r',   text: 'border-radius: 8px;' },
-    { label: 'shadow',     text: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);' },
-    { label: 'absolute',   text: 'position: absolute;\ntop: 0;\nleft: 0;\nwidth: 100%;\nheight: 100%;' },
-    { label: 'center',     text: 'display: flex;\nalign-items: center;\njustify-content: center;' },
-    { label: 'var()',      text: '--color-primary: #2563eb;\ncolor: var(--color-primary);' },
-    { label: ':hover',     text: ':hover {\n  \n}' },
-    { label: ':focus',     text: ':focus {\n  outline: 2px solid #2563eb;\n  outline-offset: 2px;\n}' },
+    { label: 'shadow',     text: 'box-shadow: 0 4px 12px rgba(0,0,0,0.15);' },
     { label: 'gradient',   text: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);' },
-    { label: 'reset',      text: '*, *::before, *::after {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}' },
+    { label: ':hover',     text: ':hover {\n  \n}' },
+    { label: 'var()',      text: '--color: #2563eb;\ncolor: var(--color);' },
   ],
   js: [
-    { label: 'const',    text: 'const ' },
-    { label: 'let',      text: 'let ' },
-    { label: 'fn',       text: 'function name() {\n  \n}' },
-    { label: '=>',       text: '(params) => {\n  \n}' },
-    { label: 'if',       text: 'if (condition) {\n  \n} else {\n  \n}' },
-    { label: 'for',      text: 'for (let i = 0; i < arr.length; i++) {\n  \n}' },
-    { label: 'forEach',  text: '.forEach((item) => {\n  \n});' },
-    { label: 'map',      text: '.map((item) => item)' },
-    { label: 'filter',   text: '.filter((item) => item)' },
-    { label: 'async',    text: 'async function name() {\n  try {\n    const res = await fetch(\'\');\n    const data = await res.json();\n  } catch (e) {\n    console.error(e);\n  }\n}' },
-    { label: 'fetch',    text: "fetch('')\n  .then(r => r.json())\n  .then(data => console.log(data))\n  .catch(e => console.error(e));" },
-    { label: 'log',      text: 'console.log()' },
-    { label: 'query',    text: "document.querySelector('')" },
-    { label: 'queryAll', text: "document.querySelectorAll('')" },
-    { label: 'try',      text: 'try {\n  \n} catch (e) {\n  console.error(e);\n}' },
-    { label: 'class',    text: 'class Name {\n  constructor() {\n    \n  }\n}' },
-    { label: 'Promise',  text: 'new Promise((resolve, reject) => {\n  \n})' },
+    { label: 'const',   text: 'const ' }, { label: 'let',    text: 'let ' },
+    { label: 'fn',      text: 'function name() {\n  \n}' },
+    { label: '=>',      text: '(params) => {\n  \n}' },
+    { label: 'if',      text: 'if (condition) {\n  \n}' },
+    { label: 'for',     text: 'for (let i = 0; i < arr.length; i++) {\n  \n}' },
+    { label: 'forEach', text: '.forEach((item) => {\n  \n});' },
+    { label: 'async',   text: 'async function name() {\n  const res = await fetch(\'\');\n  const data = await res.json();\n}' },
+    { label: 'log',     text: 'console.log()' },
+    { label: 'query',   text: "document.querySelector('')" },
+  ],
+  react: [
+    { label: 'useState',  text: 'const [value, setValue] = React.useState(initialValue);' },
+    { label: 'useEffect', text: 'React.useEffect(() => {\n  \n  return () => { };\n}, []);' },
+    { label: 'fn comp',   text: 'function MyComponent({ prop }) {\n  return (\n    <div>{prop}</div>\n  );\n}' },
+    { label: 'onClick',   text: 'onClick={() => { }}' },
+    { label: 'map list',  text: '{items.map((item, i) => (\n  <div key={i}>{item}</div>\n))}' },
+  ],
+  python: [
+    { label: 'print',  text: 'print()' }, { label: 'def', text: 'def name():\n    ' },
+    { label: 'class',  text: 'class Name:\n    def __init__(self):\n        ' },
+    { label: 'if',     text: 'if condition:\n    ' },
+    { label: 'for',    text: 'for item in items:\n    ' },
+    { label: 'import', text: 'import ' },
+    { label: 'try',    text: 'try:\n    \nexcept Exception as e:\n    print(e)' },
+    { label: 'list',   text: '[item for item in iterable]' },
+    { label: 'lambda', text: 'lambda x: x' },
   ],
 };
 
-// ── Language config ───────────────────────────────────────────────────────────
+// ── HTML tokenizer ────────────────────────────────────────────────────────────
+type TokType = 'comment' | 'doctype' | 'tag_open' | 'tag_close' | 'text';
+type Tok = { type: TokType; value: string };
 
-const LANG_LABELS: Record<CodeLanguage, string> = { html: 'HTML', css: 'CSS', js: 'JavaScript', react: 'React (JSX)', python: 'Python' };
-const LANG_ICONS:  Record<CodeLanguage, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
-  html:   'language-html5',
-  css:    'language-css3',
-  js:     'language-javascript',
-  react:  'react',
-  python: 'language-python',
+function tokenizeHTML(code: string): Tok[] {
+  const out: Tok[] = [];
+  // Match: HTML comments, DOCTYPE, closing tags, opening tags, plain text
+  const re = /<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<\/[a-zA-Z][^>]*>|<[a-zA-Z!][^>]*\/?>|[^<]+|<(?!\/)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code)) !== null) {
+    const v = m[0];
+    if (v.startsWith('<!--')) out.push({ type: 'comment', value: v });
+    else if (/^<!DOCTYPE/i.test(v)) out.push({ type: 'doctype', value: v });
+    else if (v.startsWith('</')) out.push({ type: 'tag_close', value: v });
+    else if (v.startsWith('<')) out.push({ type: 'tag_open', value: v });
+    else out.push({ type: 'text', value: v });
+  }
+  return out;
+}
+
+// Sub-tokenize an opening tag for fine-grained attribute highlighting
+type SubTok = { kind: 'bracket' | 'tagname' | 'attrname' | 'attrval' | 'ws'; text: string };
+function parseOpenTag(tag: string): SubTok[] {
+  const result: SubTok[] = [];
+  // tag = '<tagname attr="val" attr2>'
+  const inner = tag.startsWith('<') ? tag.slice(1) : tag;
+  const isSelfClose = inner.endsWith('/>');
+  const body = inner.endsWith('>') ? inner.slice(0, -1) : inner;
+  const selfSlash = isSelfClose ? '/' : '';
+
+  result.push({ kind: 'bracket', text: '<' });
+
+  // Extract tag name
+  const nameMatch = body.match(/^([a-zA-Z][a-zA-Z0-9-]*)([\s\S]*)$/);
+  if (!nameMatch) {
+    result.push({ kind: 'tagname', text: body });
+    result.push({ kind: 'bracket', text: (selfSlash ? '/>' : '>') });
+    return result;
+  }
+  result.push({ kind: 'tagname', text: nameMatch[1] });
+  let rest = nameMatch[2];
+
+  // Tokenize attributes
+  const attrRe = /(\s+)([a-zA-Z:_][a-zA-Z0-9:_.-]*)(?:(=)(?:"([^"]*)"?|'([^']*)'?|(\S+)))?/g;
+  let am: RegExpExecArray | null;
+  let lastIndex = 0;
+  while ((am = attrRe.exec(rest)) !== null) {
+    if (am.index > lastIndex) {
+      result.push({ kind: 'ws', text: rest.slice(lastIndex, am.index) });
+    }
+    result.push({ kind: 'ws', text: am[1] }); // whitespace before attr
+    result.push({ kind: 'attrname', text: am[2] });
+    if (am[3]) {
+      result.push({ kind: 'bracket', text: '=' });
+      const val = am[4] !== undefined ? `"${am[4]}"` : am[5] !== undefined ? `'${am[5]}'` : am[6] ?? '';
+      result.push({ kind: 'attrval', text: val });
+    }
+    lastIndex = am.index + am[0].length;
+  }
+  if (lastIndex < rest.length) {
+    result.push({ kind: 'ws', text: rest.slice(lastIndex) });
+  }
+  result.push({ kind: 'bracket', text: (selfSlash ? '/>' : '>') });
+  return result;
+}
+
+// Color constants for syntax
+const SYN = {
+  bracket:  '#7D8590',
+  tagname:  '#F47067',  // warm red-orange
+  doctype:  '#569CD6',  // blue
+  comment:  '#6A9955',  // green
+  attrname: '#9CDCFE',  // light blue
+  attrval:  '#CE9178',  // warm orange
+  text:     '#D4D4D4',  // light gray
 };
-const LANG_COLORS: Record<CodeLanguage, string> = {
-  html:   '#e34c26',
-  css:    '#264de4',
-  js:     '#f0db4f',
-  react:  '#61dafb',
-  python: '#3776ab',
-};
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// Render highlighted HTML text (overlay approach)
+function HighlightedHTML({ code }: { code: string }) {
+  const tokens = useMemo(() => tokenizeHTML(code), [code]);
 
+  return (
+    <Text style={hl.wrap} selectable={false} allowFontScaling={false}>
+      {tokens.map((tok, ti) => {
+        if (tok.type === 'comment') {
+          return <Text key={ti} style={{ color: SYN.comment }}>{tok.value}</Text>;
+        }
+        if (tok.type === 'doctype') {
+          // Render doctype with blue coloring
+          return (
+            <Text key={ti}>
+              <Text style={{ color: SYN.bracket }}>{'<!'}</Text>
+              <Text style={{ color: SYN.doctype }}>{tok.value.slice(2, -1)}</Text>
+              <Text style={{ color: SYN.bracket }}>{'>'}</Text>
+            </Text>
+          );
+        }
+        if (tok.type === 'tag_close') {
+          // </tagname>
+          const inner = tok.value.slice(2, -1);
+          return (
+            <Text key={ti}>
+              <Text style={{ color: SYN.bracket }}>{'</'}</Text>
+              <Text style={{ color: SYN.tagname }}>{inner}</Text>
+              <Text style={{ color: SYN.bracket }}>{'>'}</Text>
+            </Text>
+          );
+        }
+        if (tok.type === 'tag_open') {
+          const sub = parseOpenTag(tok.value);
+          return (
+            <Text key={ti}>
+              {sub.map((s, si) => (
+                <Text key={si} style={{ color: SYN[s.kind as keyof typeof SYN] ?? SYN.text }}>
+                  {s.text}
+                </Text>
+              ))}
+            </Text>
+          );
+        }
+        // plain text
+        return <Text key={ti} style={{ color: SYN.text }}>{tok.value}</Text>;
+      })}
+    </Text>
+  );
+}
+
+const hl = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    fontFamily: MONO,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+});
+
+// ── Header ────────────────────────────────────────────────────────────────────
+function CodeHeader({
+  language,
+  onMenu,
+}: {
+  language: CodeLanguage;
+  onMenu?: () => void;
+}) {
+  const langColor = LANG_COLOR[language];
+  return (
+    <View style={hdr.row}>
+      {/* Language pill */}
+      <View style={[hdr.langPill, { backgroundColor: langColor + '22' }]}>
+        <MaterialCommunityIcons name={LANG_ICON[language]} size={16} color={langColor} />
+        <Text style={[hdr.langText, { color: langColor }]}>{LANG_LABEL[language]}</Text>
+      </View>
+
+      {/* Hamburger */}
+      <Pressable onPress={onMenu} hitSlop={8} style={hdr.iconBtn}>
+        <Ionicons name="menu" size={20} color={DIM} />
+      </Pressable>
+
+      <View style={{ flex: 1 }} />
+
+      {/* Right icons */}
+      <Pressable hitSlop={8} style={hdr.iconBtn}>
+        <Ionicons name="moon-outline" size={18} color={DIM} />
+      </Pressable>
+      <Pressable hitSlop={8} style={hdr.iconBtn}>
+        <Ionicons name="grid-outline" size={18} color={DIM} />
+      </Pressable>
+      <Pressable hitSlop={8} style={hdr.iconBtn}>
+        <Ionicons name="ellipsis-vertical" size={18} color={DIM} />
+      </Pressable>
+    </View>
+  );
+}
+
+const hdr = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: CARD,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    gap: 6,
+  },
+  langPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+  },
+  langText: { fontSize: 13, fontWeight: '700' },
+  iconBtn: { padding: 6 },
+});
+
+// ── File tab bar ──────────────────────────────────────────────────────────────
+function FileTabBar({
+  tabs,
+  activeTabId,
+  onSelect,
+  onClose,
+  onAdd,
+}: {
+  tabs: { id: string; language: CodeLanguage; label: string }[];
+  activeTabId: string;
+  onSelect: (id: string) => void;
+  onClose: (id: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <View style={ftb.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={ftb.scroll}
+      >
+        {tabs.map(tab => {
+          const isActive = tab.id === activeTabId;
+          const lc = LANG_COLOR[tab.language];
+          return (
+            <Pressable
+              key={tab.id}
+              onPress={() => { onSelect(tab.id); Haptics.selectionAsync(); }}
+              style={[ftb.tab, isActive && { borderBottomColor: lc, borderBottomWidth: 2 }]}
+            >
+              <MaterialCommunityIcons
+                name={LANG_ICON[tab.language]}
+                size={13}
+                color={isActive ? lc : DIM}
+              />
+              <Text style={[ftb.tabLabel, { color: isActive ? FG : DIM }]}>
+                {LANG_FILE[tab.language]}
+              </Text>
+              {tabs.length > 1 && (
+                <Pressable onPress={() => onClose(tab.id)} hitSlop={6}>
+                  <Ionicons name="close" size={12} color={DIM} />
+                </Pressable>
+              )}
+            </Pressable>
+          );
+        })}
+
+        {/* Add button */}
+        <Pressable onPress={onAdd} hitSlop={8} style={ftb.addBtn}>
+          <Ionicons name="add" size={18} color={DIM} />
+        </Pressable>
+      </ScrollView>
+
+      {/* Live indicator */}
+      <View style={ftb.liveWrap}>
+        <View style={ftb.liveDot} />
+        <Text style={ftb.liveText}>Live</Text>
+      </View>
+    </View>
+  );
+}
+
+const ftb = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    height: 42,
+  },
+  scroll:    { alignItems: 'center', paddingHorizontal: 4 },
+  tab: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, height: 42, marginRight: 2,
+    borderBottomWidth: 2, borderBottomColor: 'transparent',
+  },
+  tabLabel:  { fontSize: 12, fontWeight: '600' },
+  addBtn:    { padding: 10 },
+  liveWrap:  {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14,
+  },
+  liveDot:   { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
+  liveText:  { fontSize: 12, fontWeight: '600', color: '#22C55E' },
+});
+
+// ── Code / Preview / Output switcher ─────────────────────────────────────────
+type Panel = 'code' | 'preview' | 'output';
+
+function PanelSwitcher({
+  active,
+  onChange,
+}: {
+  active: Panel;
+  onChange: (p: Panel) => void;
+}) {
+  const items: Array<{
+    key: Panel;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    label: string;
+  }> = [
+    { key: 'code',    icon: 'code-slash',       label: 'Code' },
+    { key: 'preview', icon: 'desktop-outline',  label: 'Preview' },
+    { key: 'output',  icon: 'share-outline',    label: 'Output' },
+  ];
+
+  return (
+    <View style={sw.bar}>
+      {items.map(item => {
+        const isActive = item.key === active;
+        return (
+          <Pressable
+            key={item.key}
+            onPress={() => { onChange(item.key); Haptics.selectionAsync(); }}
+            style={sw.btnWrap}
+          >
+            {isActive ? (
+              <LinearGradient
+                colors={['#3B6FF0', '#4B7BFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={sw.activePill}
+              >
+                <Ionicons name={item.icon} size={13} color="#FFFFFF" />
+                <Text style={sw.activeLabel}>{item.label}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={sw.inactiveWrap}>
+                <Ionicons name={item.icon} size={13} color={DIM} />
+                <Text style={sw.inactiveLabel}>{item.label}</Text>
+              </View>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const sw = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  btnWrap: { flex: 1 },
+  activePill: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, borderRadius: 8, paddingVertical: 7,
+  },
+  activeLabel:   { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  inactiveWrap: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingVertical: 7,
+  },
+  inactiveLabel: { fontSize: 13, fontWeight: '500', color: DIM },
+});
+
+// ── Snippet bar ───────────────────────────────────────────────────────────────
+function SnippetBar({
+  language,
+  onInsert,
+}: {
+  language: CodeLanguage;
+  onInsert: (text: string) => void;
+}) {
+  const snippets = SNIPPETS[language];
+  const lc = LANG_COLOR[language];
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={snp.bar}
+      contentContainerStyle={snp.content}
+      keyboardShouldPersistTaps="always"
+    >
+      {snippets.map(s => (
+        <Pressable
+          key={s.label}
+          onPress={() => onInsert(s.text)}
+          style={({ pressed }) => [snp.chip, { opacity: pressed ? 0.65 : 1, backgroundColor: MUTED, borderColor: BORDER }]}
+        >
+          <Text style={[snp.chipText, { color: lc }]}>{s.label}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+const snp = StyleSheet.create({
+  bar:     { borderTopWidth: 1, borderTopColor: BORDER, maxHeight: 38, flexGrow: 0, backgroundColor: BG },
+  content: { paddingHorizontal: 8, paddingVertical: 5, gap: 6, alignItems: 'center' },
+  chip:    { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  chipText:{ fontSize: 11, fontWeight: '600', fontFamily: MONO },
+});
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function CodeScreen() {
-  const colors   = useColors();
-  const insets   = useSafeAreaInsets();
-  const {
-    tabs, activeTabId, setActiveTabId,
-    addTab, closeTab, updateTabCode, activeTab,
-  } = useCode();
+  const insets  = useSafeAreaInsets();
+  const { tabs, activeTabId, setActiveTabId, addTab, closeTab, updateTabCode, activeTab } = useCode();
 
-  const inputRef           = useRef<TextInput>(null);
-  const [bottomPanel, setBottomPanel] = useState<'preview' | 'console' | 'dom'>('preview');
+  const inputRef = useRef<TextInput>(null);
+  const [panel, setPanel] = useState<Panel>('code');
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [domTree, setDomTree] = useState<DOMNode | null>(null);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
 
-  const language   = activeTab?.language ?? 'html';
-  const code       = activeTab?.code ?? '';
-  const snippets   = SNIPPETS[language];
-  // DOM tab makes sense for HTML, CSS, and React (all render real DOM trees)
-  const showDomTab = language === 'html' || language === 'css' || language === 'react';
+  const language = activeTab?.language ?? 'html';
+  const code     = activeTab?.code ?? '';
 
   const handleCodeChange = useCallback((text: string) => {
     if (activeTab) updateTabCode(activeTab.id, text);
   }, [activeTab, updateTabCode]);
 
   const insertSnippet = (text: string) => {
-    const newCode = code + text;
-    handleCodeChange(newCode);
+    handleCodeChange(code + text);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    inputRef.current?.focus();
-  };
-
-  const insertColor = (color: string) => {
-    handleCodeChange(code + color);
     inputRef.current?.focus();
   };
 
@@ -180,278 +537,171 @@ export default function CodeScreen() {
     ]);
   };
 
-  const handleAddTab = (lang: CodeLanguage) => {
-    addTab(lang);
-    setShowAddMenu(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
   const lineCount = code.split('\n').length;
+  // Use HTML highlighting only for html tabs
+  const useHighlight = language === 'html';
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[s.container, { backgroundColor: BG, paddingTop: insets.top }]}>
 
-      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-        contentContainerStyle={styles.tabBarContent}
-      >
-        {tabs.map(tab => {
-          const isActive  = tab.id === activeTabId;
-          const langColor = LANG_COLORS[tab.language];
-          return (
-            <Pressable
-              key={tab.id}
-              onPress={() => { setActiveTabId(tab.id); Haptics.selectionAsync(); }}
-              style={[styles.tab, isActive && { borderBottomWidth: 2, borderBottomColor: langColor }]}
-            >
-              <MaterialCommunityIcons name={LANG_ICONS[tab.language]} size={13} color={isActive ? langColor : colors.mutedForeground} />
-              <Text style={[styles.tabLabel, { color: isActive ? colors.foreground : colors.mutedForeground }]}>
-                {tab.label}
-              </Text>
-              {tabs.length > 1 && (
-                <Pressable onPress={() => closeTab(tab.id)} hitSlop={6}>
-                  <MaterialIcons name="close" size={12} color={colors.mutedForeground} />
-                </Pressable>
-              )}
-            </Pressable>
-          );
-        })}
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <CodeHeader language={language} />
 
-        {/* Add tab button */}
-        <Pressable onPress={() => setShowAddMenu(v => !v)} style={styles.addTabBtn} hitSlop={8}>
-          <MaterialIcons name="add" size={18} color={colors.mutedForeground} />
-        </Pressable>
-      </ScrollView>
+      {/* ── File tabs ───────────────────────────────────────────────────────── */}
+      <FileTabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelect={id => { setActiveTabId(id); }}
+        onClose={id => closeTab(id)}
+        onAdd={() => setShowAddMenu(v => !v)}
+      />
 
       {/* Add tab dropdown */}
       {showAddMenu && (
-        <View style={[styles.addMenu, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.foreground }]}>
+        <View style={[s.addMenu, { backgroundColor: CARD, borderColor: BORDER }]}>
           {(['html', 'css', 'js', 'react'] as CodeLanguage[]).map(lang => (
             <Pressable
               key={lang}
-              onPress={() => handleAddTab(lang)}
-              style={({ pressed }) => [styles.addMenuItem, { backgroundColor: pressed ? colors.muted : 'transparent' }]}
+              onPress={() => { addTab(lang); setShowAddMenu(false); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={({ pressed }) => [s.addItem, { backgroundColor: pressed ? MUTED : 'transparent' }]}
             >
-              <MaterialCommunityIcons name={LANG_ICONS[lang]} size={15} color={LANG_COLORS[lang]} />
-              <Text style={[styles.addMenuLabel, { color: colors.foreground }]}>New {LANG_LABELS[lang]} tab</Text>
+              <MaterialCommunityIcons name={LANG_ICON[lang]} size={14} color={LANG_COLOR[lang]} />
+              <Text style={[s.addItemLabel, { color: FG }]}>New {LANG_LABEL[lang]} file</Text>
             </Pressable>
           ))}
-          <Pressable onPress={() => setShowAddMenu(false)} style={styles.addMenuClose}>
-            <Text style={[styles.addMenuCloseText, { color: colors.mutedForeground }]}>Cancel</Text>
+          <Pressable onPress={() => setShowAddMenu(false)} style={s.addCancel}>
+            <Text style={{ color: DIM, fontSize: 13 }}>Cancel</Text>
           </Pressable>
         </View>
       )}
 
-      {/* ── Editor toolbar ─────────────────────────────────────────────────── */}
-      <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {/* Language pill */}
-        <View style={[styles.langPill, { backgroundColor: LANG_COLORS[language] + '22' }]}>
-          <MaterialCommunityIcons name={LANG_ICONS[language]} size={14} color={LANG_COLORS[language]} />
-          <Text style={[styles.langPillText, { color: LANG_COLORS[language] }]}>
-            {LANG_LABELS[language]}
-          </Text>
-        </View>
-
-        {/* Color picker (CSS only) */}
-        {language === 'css' && (
-          <Pressable onPress={() => setShowColorPicker(true)} style={styles.iconBtn} hitSlop={8}>
-            <MaterialIcons name="palette" size={18} color={colors.mutedForeground} />
-          </Pressable>
-        )}
-
-        <Pressable onPress={handleClear} style={styles.iconBtn} hitSlop={8}>
-          <MaterialIcons name="clear-all" size={18} color={colors.mutedForeground} />
-        </Pressable>
-
-        {/* Word wrap toggle info */}
-        <Text style={[styles.lineCount, { color: colors.mutedForeground }]}>{lineCount}L</Text>
-      </View>
-
-      {/* ── Code editor (line numbers + TextInput) ─────────────────────────── */}
-      <View style={[styles.editorWrapper, { backgroundColor: colors.editorBg }]}>
-        <ScrollView style={styles.editorScroll} keyboardDismissMode="none">
-          <View style={styles.editorInner}>
+      {/* ── Code editor ─────────────────────────────────────────────────────── */}
+      <View style={s.editorSection}>
+        <ScrollView
+          style={[s.editorScroll, { backgroundColor: BG }]}
+          keyboardDismissMode="none"
+          showsVerticalScrollIndicator={true}
+          indicatorStyle="white"
+        >
+          <View style={s.editorInner}>
             {/* Line numbers */}
-            <View style={[styles.lineNums, { backgroundColor: colors.background, borderRightColor: colors.border }]}>
+            <View style={[s.lineNums, { backgroundColor: CARD, borderRightColor: BORDER }]}>
               {Array.from({ length: lineCount }, (_, i) => (
-                <Text key={i} style={[styles.lineNum, { color: colors.editorLineNumber }]}>
-                  {i + 1}
-                </Text>
+                <Text key={i} style={s.lineNum}>{i + 1}</Text>
               ))}
             </View>
-            {/* Input */}
-            <TextInput
-              ref={inputRef}
-              value={code}
-              onChangeText={handleCodeChange}
-              style={[styles.codeInput, { color: colors.editorText }]}
-              multiline
-              scrollEnabled={false}
-              autoCorrect={false}
-              autoCapitalize="none"
-              spellCheck={false}
-              keyboardType="ascii-capable"
-              selectionColor={colors.editorCaret}
-              placeholder={language === 'react' ? `// Write React JSX here — define a function App() { return <div>...</div>; }` : `<!-- Write ${LANG_LABELS[language]} here... -->`}
-              placeholderTextColor={colors.editorLineNumber}
-              textAlignVertical="top"
-            />
+
+            {/* Code area: highlighted overlay + transparent input */}
+            <View style={{ flex: 1, position: 'relative' }}>
+              {useHighlight && (
+                <HighlightedHTML code={code} />
+              )}
+              <TextInput
+                ref={inputRef}
+                value={code}
+                onChangeText={handleCodeChange}
+                style={[
+                  s.codeInput,
+                  useHighlight
+                    ? { color: 'transparent', caretColor: '#4B7BFF' } as any
+                    : { color: FG },
+                ]}
+                multiline
+                scrollEnabled={false}
+                autoCorrect={false}
+                autoCapitalize="none"
+                spellCheck={false}
+                keyboardType="ascii-capable"
+                selectionColor={ACCENT}
+                textAlignVertical="top"
+                placeholder={`<!-- Write ${LANG_LABEL[language]} here... -->`}
+                placeholderTextColor="#3D444D"
+              />
+            </View>
           </View>
         </ScrollView>
+
+        {/* Snippet bar inside editor section */}
+        <SnippetBar language={language} onInsert={insertSnippet} />
       </View>
 
-      {/* ── Snippet bar ─────────────────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.snippetBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}
-        contentContainerStyle={styles.snippetBarContent}
-        keyboardShouldPersistTaps="always"
-      >
-        {snippets.map(s => (
-          <Pressable
-            key={s.label}
-            onPress={() => insertSnippet(s.text)}
-            style={({ pressed }) => [
-              styles.chip,
-              { backgroundColor: pressed ? colors.muted : colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.chipText, { fontFamily: MONO_FONT, color: LANG_COLORS[language] }]}>
-              {s.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {/* ── Code/Preview/Output switcher ────────────────────────────────────── */}
+      <PanelSwitcher active={panel} onChange={setPanel} />
 
-      {/* ── Divider with panel toggle ──────────────────────────────────────── */}
-      <View style={[styles.divider, { backgroundColor: colors.border }]}>
-        <View style={[styles.panelToggle, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Pressable
-            onPress={() => setBottomPanel('preview')}
-            style={[styles.toggleBtn, bottomPanel === 'preview' && { backgroundColor: colors.primary }]}
-          >
-            <MaterialIcons name="visibility" size={13} color={bottomPanel === 'preview' ? colors.primaryForeground : colors.mutedForeground} />
-            <Text style={[styles.toggleText, { color: bottomPanel === 'preview' ? colors.primaryForeground : colors.mutedForeground }]}>
-              Preview
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setBottomPanel('console')}
-            style={[styles.toggleBtn, bottomPanel === 'console' && { backgroundColor: colors.primary }]}
-          >
-            <MaterialIcons name="terminal" size={13} color={bottomPanel === 'console' ? colors.primaryForeground : colors.mutedForeground} />
-            <Text style={[styles.toggleText, { color: bottomPanel === 'console' ? colors.primaryForeground : colors.mutedForeground }]}>
-              Console
-            </Text>
-            {consoleEntries.filter(e => e.type === 'error').length > 0 && (
-              <View style={[styles.errorDot, { backgroundColor: colors.destructive }]} />
-            )}
-          </Pressable>
-          {/* DOM Inspector — only for HTML and CSS */}
-          {showDomTab && (
-            <Pressable
-              onPress={() => setBottomPanel('dom')}
-              style={[styles.toggleBtn, bottomPanel === 'dom' && { backgroundColor: colors.primary }]}
-            >
-              <MaterialIcons name="developer-mode" size={13} color={bottomPanel === 'dom' ? colors.primaryForeground : colors.mutedForeground} />
-              <Text style={[styles.toggleText, { color: bottomPanel === 'dom' ? colors.primaryForeground : colors.mutedForeground }]}>
-                DOM
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      {/* ── Bottom panel ──────────────────────────────────────────────────── */}
-      <View style={styles.bottomPanel}>
-        {/* WebPreview is always mounted to avoid re-render flicker on toggle */}
-        <View style={{ flex: 1, display: bottomPanel === 'preview' ? 'flex' : 'none' }}>
-          <WebPreview
-            language={language}
-            code={code}
-            onConsoleEntries={setConsoleEntries}
-            onDomTree={setDomTree}
-          />
-        </View>
-        {bottomPanel === 'console' && (
+      {/* ── Bottom panel ────────────────────────────────────────────────────── */}
+      <View style={s.previewSection}>
+        {panel === 'code' ? (
+          /* When "Code" is active, show the live preview card below */
+          <View style={{ flex: 1 }}>
+            <WebPreview
+              language={language}
+              code={code}
+              onConsoleEntries={setConsoleEntries}
+              onDomTree={() => {}}
+            />
+          </View>
+        ) : panel === 'preview' ? (
+          <View style={{ flex: 1 }}>
+            <WebPreview
+              language={language}
+              code={code}
+              onConsoleEntries={setConsoleEntries}
+              onDomTree={() => {}}
+            />
+          </View>
+        ) : (
           <ConsolePanel
             entries={consoleEntries}
             onClear={() => setConsoleEntries([])}
           />
         )}
-        {bottomPanel === 'dom' && (
-          <DOMInspector tree={domTree} />
-        )}
       </View>
 
       {Platform.OS === 'web' && <View style={{ height: 34 }} />}
-
-      {/* ── Modals ──────────────────────────────────────────────────────────── */}
-      <ColorPickerModal
-        visible={showColorPicker}
-        onClose={() => setShowColorPicker(false)}
-        onPick={insertColor}
-      />
     </View>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container:      { flex: 1 },
-  tabBar:         { borderBottomWidth: 1, maxHeight: 40, flexGrow: 0 },
-  tabBarContent:  { paddingHorizontal: 4, alignItems: 'center' },
-  tab: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 10, marginRight: 2,
-  },
-  tabLabel:    { fontSize: 12, fontWeight: '600' },
-  addTabBtn:   { padding: 8 },
-  addMenu: {
-    position: 'absolute', top: 40, right: 8, zIndex: 100,
-    borderRadius: 10, borderWidth: 1, overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 8,
-    minWidth: 180,
-  },
-  addMenuItem:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  addMenuLabel:     { fontSize: 14, fontWeight: '500' },
-  addMenuClose:     { padding: 12, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
-  addMenuCloseText: { fontSize: 13 },
-  toolbar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
-    paddingVertical: 6, borderBottomWidth: 1, gap: 6,
-  },
-  langPill:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  langPillText: { fontSize: 12, fontWeight: '700', flex: 1 },
-  iconBtn:      { padding: 6 },
-  lineCount:    { marginLeft: 'auto', fontSize: 11, fontFamily: MONO_FONT },
-  editorWrapper:{ flex: 1 },
-  editorScroll: { flex: 1 },
-  editorInner:  { flexDirection: 'row', minHeight: '100%', paddingBottom: 20 },
+
+  // Editor
+  editorSection:  { flex: 1.1, borderBottomWidth: 0 },
+  editorScroll:   { flex: 1 },
+  editorInner:    { flexDirection: 'row', minHeight: '100%', paddingBottom: 20 },
   lineNums: {
-    paddingTop: 14, paddingHorizontal: 8,
-    minWidth: 42, alignItems: 'flex-end', borderRightWidth: 1,
+    paddingTop: 12, paddingHorizontal: 8,
+    minWidth: 40, alignItems: 'flex-end',
+    borderRightWidth: 1,
+    backgroundColor: CARD,
   },
-  lineNum:     { fontFamily: MONO_FONT, fontSize: 12, lineHeight: 19.2, color: '#585B70', minWidth: 20, textAlign: 'right' },
-  codeInput:   { flex: 1, paddingHorizontal: 14, paddingTop: 14, fontFamily: MONO_FONT, fontSize: 13, lineHeight: 19.2, textAlignVertical: 'top' },
-  snippetBar:          { borderTopWidth: 1, maxHeight: 40, flexGrow: 0 },
-  snippetBarContent:   { paddingHorizontal: 8, paddingVertical: 5, gap: 6, alignItems: 'center' },
-  chip:                { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
-  chipText:            { fontSize: 11, fontWeight: '600' },
-  divider: {
-    height: 2, alignItems: 'center', justifyContent: 'center', overflow: 'visible',
+  lineNum: {
+    fontFamily: MONO, fontSize: 12, lineHeight: 20,
+    color: '#3D444D', minWidth: 18, textAlign: 'right',
   },
-  panelToggle: {
-    flexDirection: 'row', borderRadius: 8, borderWidth: 1, overflow: 'hidden',
-    position: 'absolute', zIndex: 1,
+  codeInput: {
+    flex: 1,
+    paddingHorizontal: 14, paddingTop: 12,
+    fontFamily: MONO, fontSize: 13, lineHeight: 20,
+    textAlignVertical: 'top',
   },
-  toggleBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 5 },
-  toggleText: { fontSize: 11, fontWeight: '600' },
-  errorDot:   { width: 6, height: 6, borderRadius: 3 },
-  bottomPanel:{ flex: 1 },
+
+  // Preview panel
+  previewSection: { flex: 1, backgroundColor: MUTED },
+
+  // Add menu
+  addMenu: {
+    position: 'absolute', top: 88, right: 8, zIndex: 100,
+    borderRadius: 12, borderWidth: 1, minWidth: 190,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 10,
+  },
+  addItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  addItemLabel: { fontSize: 14, fontWeight: '500' },
+  addCancel: { padding: 12, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BORDER },
 });

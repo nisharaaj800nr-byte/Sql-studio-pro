@@ -38,22 +38,35 @@ const DEFAULTS: Record<CodeLanguage, string> = {
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport"
+  content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, sans-serif; padding: 16px; background: #f8fafc; }
-    h1   { color: #2563eb; margin-bottom: 8px; }
-    p    { color: #374151; line-height: 1.6; }
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #0f0f14; }
+    h1 { color: #22d3ee; margin-bottom: 16px; }
+    p { color: #9ca3af; line-height: 1.6; }
     button {
-      background: #2563eb; color: white; border: none;
-      border-radius: 8px; padding: 8px 18px; font-size: 14px; cursor: pointer;
+      background: #2563eb; color: white;
+      border: none;
+      border-radius: 8px; padding: 10px 16px;
+      font-size: 14px; cursor: pointer;
     }
     button:hover { background: #1d4ed8; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; text-align: center; }
+    .orb { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #1e3a8a; display: flex; align-items: center; justify-content: center; position: relative; }
+    .orb::before { content: ''; position: absolute; width: 108px; height: 108px; border-radius: 50%; border: 1px solid #1e3a8a66; }
+    .orb::after { content: ''; position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 1px solid #1e3a8a33; }
+    .code-icon { font-size: 22px; color: #60a5fa; font-weight: 700; font-family: monospace; }
+    h1 { font-size: 22px; font-weight: 700; background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p { font-size: 14px; max-width: 260px; }
+    button { margin-top: 4px; }
   </style>
 </head>
 <body>
+  <div class="orb"><span class="code-icon">&lt;/&gt;</span></div>
   <h1>Hello, HTML! 👋</h1>
   <p>Edit this code and see the live preview update automatically.</p>
-  <button onclick="this.textContent='Clicked! ✓'">Click me</button>
+  <button onclick="this.textContent='Clicked! ✓'">👁 Click me</button>
 </body>
 </html>`,
 
