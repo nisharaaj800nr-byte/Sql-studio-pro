@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 import {
   classifySQL,
   extractCTEAliases,
@@ -744,6 +745,9 @@ export function getDatabaseFilename(dbId: string): string {
 }
 
 export async function dbFileExists(dbId: string): Promise<boolean> {
+  // On web, expo-sqlite uses IndexedDB — no real filesystem. Always return true
+  // so DatabaseContext never silently wipes the database list on web.
+  if (Platform.OS === 'web') return true;
   try {
     const dir = (FileSystem as any).documentDirectory ?? '';
     const path = `${dir}SQLite/sqlstudio_${dbId}.db`;
@@ -756,6 +760,15 @@ export async function dbFileExists(dbId: string): Promise<boolean> {
 
 export async function deleteDbFile(dbId: string): Promise<void> {
   await closeDatabase(dbId);
+  if (Platform.OS === 'web') {
+    // On web, expo-sqlite uses IndexedDB. Drop via SQLite API then remove from cache.
+    try {
+      await SQLite.deleteDatabaseAsync(`sqlstudio_${dbId}.db`);
+    } catch {
+      // best-effort
+    }
+    return;
+  }
   try {
     const dir = (FileSystem as any).documentDirectory ?? '';
     const path = `${dir}SQLite/sqlstudio_${dbId}.db`;
