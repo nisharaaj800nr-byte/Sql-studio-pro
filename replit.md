@@ -1,49 +1,40 @@
 # SQL Studio Pro
 
-A professional mobile SQLite IDE built with Expo (React Native) and an Express API backend.
-
-## Project Structure
-
-```
-artifacts/
-  mobile/        — Expo React Native app (SQL Studio Pro)
-  api-server/    — Express TypeScript backend
-```
-
-## How to Run
-
-Both services start automatically via Replit workflows:
-
-| Service | Workflow | Port |
-|---|---|---|
-| Mobile (Expo) | SQL Studio Pro Mobile | 18115 |
-| API Server | SQL Studio Pro API | 8080 |
-
-To start manually:
-```bash
-pnpm install
-# Then start both workflows from the Replit workflow panel
-```
-
-## Screens
-
-- **Home** — Dashboard with stats, recent databases, quick actions, SQL templates
-- **Databases** — List of SQLite databases with search/filter
-- **Database Detail** — Schema explorer (tables, views, indexes, triggers)
-- **Table View** — Browse and edit table data
-- **Editor** — SQL query editor with syntax highlighting and results grid
-- **History** — Query execution history
-- **Settings** — App configuration, theme, editor preferences
-- **AI Assistant** — Natural language to SQL, query explanation
+A professional, offline-first, multi-language database IDE for mobile (Expo/React Native) with a companion API server.
 
 ## Stack
 
-- **Mobile**: Expo ~54, React Native, Expo Router, expo-sqlite, expo-file-system
-- **API**: Express, TypeScript, esbuild, pino
-- **Monorepo**: pnpm workspaces
+- **Mobile app**: Expo (React Native) — `artifacts/mobile`
+- **API server**: Express + Drizzle ORM — `artifacts/api-server`
+- **Shared libraries**: `lib/` (api-client-react, api-spec, api-zod, db)
+- **Package manager**: pnpm workspace
 
-## User Preferences
+## Running the project
 
-- Keep existing architecture and screen structure
-- No new screens unless absolutely necessary — improve existing ones
-- Target quality: VS Code / TablePlus / Linear level polish
+Dependencies must be installed first:
+
+```
+pnpm install
+```
+
+Both services run in parallel via the configured workflows:
+
+| Workflow | Command | Port |
+|----------|---------|------|
+| SQL Studio Pro Mobile | `PORT=18115 pnpm --filter @workspace/mobile run dev` | 18115 |
+| SQL Studio Pro API | `PORT=8080 pnpm --filter @workspace/api-server run dev` | 8080 |
+
+The mobile app is an Expo project — scan the QR code in the workflow logs with **Expo Go** on your phone, or open the web preview at the Mobile workflow's port.
+
+## Project status
+
+See `PROJECT_STATUS.md` for the detailed feature tracker. As of import:
+
+- Phase 1 (Core Stability) — ✅ Complete
+- Phase 2 (Professional Features) — ✅ Complete
+- Phase 3 (Multi-Language Support) — 🟡 31% (SQLite, HTML, CSS, JS done)
+- Phase 4 (Cloud & AI) — ⬜ Not started
+
+## User preferences
+
+<!-- Add preferences here as they are established -->
