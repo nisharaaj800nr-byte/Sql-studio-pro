@@ -8,6 +8,7 @@ import { CodeProvider } from '@/contexts/CodeContext';
 import { DatabaseProvider } from '@/contexts/DatabaseContext';
 import { EditorProvider } from '@/contexts/EditorContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -15,6 +16,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -37,6 +39,9 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+    ...MaterialCommunityIcons.font,
   });
 
   useEffect(() => {

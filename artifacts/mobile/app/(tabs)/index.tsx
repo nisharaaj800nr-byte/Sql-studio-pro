@@ -117,24 +117,21 @@ export default function DashboardScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
         <View style={styles.quickGrid}>
           {[
-            { label: 'New DB', icon: 'add-circle-outline' as const, color: colors.primary, route: '/(tabs)/databases' as const },
-            { label: 'Run SQL', icon: 'play-circle-outline' as const, color: colors.accent, route: '/(tabs)/editor' as const },
-            { label: 'History', icon: 'time-outline' as const, color: STAT_COLORS[2], route: '/(tabs)/history' as const },
-            { label: 'AI Help', icon: 'sparkles-outline' as const, color: '#FFA657', route: '/ai' as const },
+            { label: 'New DB',   icon: 'server'    as const, bg: '#1D4ED8', route: '/(tabs)/databases' as const },
+            { label: 'Run SQL',  icon: 'play'      as const, bg: '#059669', route: '/(tabs)/editor'    as const },
+            { label: 'History',  icon: 'time'      as const, bg: '#7C3AED', route: '/(tabs)/history'   as const },
+            { label: 'AI Help',  icon: 'sparkles'  as const, bg: '#C2410C', route: '/ai'               as const },
           ].map(item => (
             <Pressable
               key={item.label}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route); }}
               style={({ pressed }) => [
                 styles.quickBtn,
-                {
-                  backgroundColor: pressed ? item.color + '20' : colors.card,
-                  borderColor: pressed ? item.color + '60' : colors.border,
-                },
+                { opacity: pressed ? 0.78 : 1 },
               ]}
             >
-              <View style={[styles.quickIconWrap, { backgroundColor: item.color + '16' }]}>
-                <Ionicons name={item.icon} size={21} color={item.color} />
+              <View style={[styles.quickIconWrap, { backgroundColor: item.bg }]}>
+                <Ionicons name={item.icon} size={24} color="#FFFFFF" />
               </View>
               <Text style={[styles.quickLabel, { color: colors.foreground }]}>{item.label}</Text>
             </Pressable>
@@ -292,22 +289,25 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 13, fontWeight: '600' },
 
   // Quick actions grid
-  quickGrid: { flexDirection: 'row', gap: 7 },
+  quickGrid: { flexDirection: 'row', gap: 10 },
   quickBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 11,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 6,
+    paddingVertical: 14,
+    gap: 7,
   },
   quickIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   quickLabel: { fontSize: 11, fontWeight: '600', letterSpacing: -0.1 },
 

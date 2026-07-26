@@ -35,7 +35,12 @@ interface SettingsContextType {
 }
 
 const STORAGE_KEY = '@sqlstudio_settings_v1';
-const SettingsContext = createContext<SettingsContextType | null>(null);
+
+const SettingsContext = createContext<SettingsContextType>({
+  settings: DEFAULT_SETTINGS,
+  updateSetting: () => {},
+  resetSettings: async () => {},
+});
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -71,7 +76,5 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useSettings() {
-  const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error('useSettings must be inside SettingsProvider');
-  return ctx;
+  return useContext(SettingsContext);
 }

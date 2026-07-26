@@ -8,14 +8,15 @@ import {
   Switch,
   Text,
   View,
-  useColorScheme,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import type { ThemeMode } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEditor } from '@/contexts/EditorContext';
 import { useDatabases } from '@/contexts/DatabaseContext';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { getSQLiteCapabilitiesStandalone, type SQLiteCapabilities } from '@/utils/sqliteManager';
@@ -87,7 +88,6 @@ const EXPORT_FORMATS = ['csv', 'json', 'sql'] as const;
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
   const { queryHistory, savedQueries, clearHistory } = useEditor();
   const { databases } = useDatabases();
   const { settings, updateSetting, resetSettings } = useSettings();
@@ -190,13 +190,29 @@ export default function SettingsScreen() {
       <View style={styles.content}>
         {/* Appearance */}
         <SectionHeader title="Appearance" />
-        <View style={[styles.section, { borderColor: colors.border }]}>
-          <SettingRow
-            icon="palette"
-            label="Theme"
-            description={`System (${scheme === 'dark' ? 'Dark' : 'Light'})`}
-            isFirst isLast
-          />
+        <View style={[styles.themeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.themeIconBg, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="color-palette" size={17} color={colors.primary} />
+          </View>
+          <Text style={[styles.themeLabel, { color: colors.foreground }]}>Theme</Text>
+          <View style={[styles.themeSegment, { backgroundColor: colors.secondary }]}>
+            {(['dark', 'light', 'system'] as const).map(mode => {
+              const active = settings.themeMode === mode;
+              const iconName = mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait-outline';
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => { updateSetting('themeMode', mode); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.themeSegBtn, active && { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <Ionicons name={iconName as any} size={13} color={active ? colors.primary : colors.mutedForeground} />
+                  <Text style={[styles.themeSegLabel, { color: active ? colors.primary : colors.mutedForeground, fontWeight: active ? '700' : '500' }]}>
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* Editor */}
@@ -339,4 +355,33 @@ const styles = StyleSheet.create({
   rowDesc: { fontSize: 12, marginTop: 1 },
   separator: { height: StyleSheet.hairlineWidth },
   footer: { textAlign: 'center', fontSize: 12, lineHeight: 18, marginTop: 28, marginBottom: 8 },
+  // Theme picker
+  themeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 10,
+  },
+  themeIconBg: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  themeLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
+  themeSegment: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    padding: 3,
+    gap: 2,
+  },
+  themeSegBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
+  },
+  themeSegLabel: { fontSize: 12 },
 });

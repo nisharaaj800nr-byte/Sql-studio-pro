@@ -1,13 +1,13 @@
 /**
  * SQL Studio Pro – Design Tokens
- * Professional dark-first IDE aesthetic.
- * Light theme is clean & minimal. Dark theme is GitHub Dark-inspired.
+ * Dark theme: deep GitHub-inspired obsidian.
+ * Light theme: clean, high-contrast slate.
  */
 const colors = {
   light: {
     text: '#0F172A',
     tint: '#2563EB',
-    background: '#F1F5F9',
+    background: '#F8FAFC',
     foreground: '#0F172A',
     card: '#FFFFFF',
     cardForeground: '#0F172A',
@@ -21,7 +21,7 @@ const colors = {
     accentForeground: '#FFFFFF',
     destructive: '#DC2626',
     destructiveForeground: '#FFFFFF',
-    border: '#E2E8F0',
+    border: '#CBD5E1',
     input: '#F1F5F9',
     // SQL syntax colors (light)
     sqlKeyword: '#1D4ED8',
@@ -40,22 +40,22 @@ const colors = {
   dark: {
     text: '#E6EDF3',
     tint: '#58A6FF',
-    background: '#0D1117',
+    background: '#090D12',
     foreground: '#E6EDF3',
-    card: '#161B22',
+    card: '#0D1117',
     cardForeground: '#E6EDF3',
     primary: '#58A6FF',
-    primaryForeground: '#0D1117',
-    secondary: '#21262D',
+    primaryForeground: '#090D12',
+    secondary: '#161B22',
     secondaryForeground: '#C9D1D9',
-    muted: '#1C2128',
+    muted: '#111820',
     mutedForeground: '#7D8590',
     accent: '#3FB950',
-    accentForeground: '#0D1117',
+    accentForeground: '#090D12',
     destructive: '#F85149',
     destructiveForeground: '#FFFFFF',
-    border: '#30363D',
-    input: '#1C2128',
+    border: '#21262D',
+    input: '#111820',
     // SQL syntax colors (dark)
     sqlKeyword: '#79C0FF',
     sqlString: '#A5D6FF',
@@ -64,7 +64,7 @@ const colors = {
     sqlFunction: '#D2A8FF',
     sqlOperator: '#FF7B72',
     // Editor-specific
-    editorBg: '#0D1117',
+    editorBg: '#090D12',
     editorText: '#E6EDF3',
     editorLineNumber: '#3D444D',
     editorCaret: '#58A6FF',
