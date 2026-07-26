@@ -1,43 +1,58 @@
 # SQL Studio Pro
 
-A professional, offline-first SQLite IDE for mobile, built with Expo + React Native.
+A professional, offline-first SQLite IDE for mobile, built with Expo/React Native.
 
-## Architecture
+## Project Overview
 
-**Monorepo (pnpm workspace):**
-- `artifacts/mobile/` — Expo React Native app (primary artifact, port 18115)
-- `artifacts/api-server/` — Express API server (optional, port 8080)
-- `lib/api-zod/` — Shared Zod schemas
-- `lib/api-client-react/` — Tanstack Query hooks
+SQL Studio Pro lets users create and query local SQLite databases entirely on-device — no internet connection required for core SQL execution. It features a professional SQL editor, multi-tab support, schema visualization, and more.
 
-## Running the Project
+### Stack
+- **Mobile**: Expo/React Native (Expo Router, expo-sqlite)
+- **API**: Express + Drizzle ORM (optional — not required for SQL execution)
+- **Monorepo**: pnpm workspaces
 
-Both workflows start automatically:
-- **SQL Studio Pro Mobile** — `PORT=18115 pnpm --filter @workspace/mobile run dev`
-- **SQL Studio Pro API** — `PORT=8080 pnpm --filter @workspace/api-server run dev`
+### Architecture
+- All SQL execution happens locally via `expo-sqlite` — no data leaves the device
+- API server is optional (future cloud/AI features)
+- Offline-first: databases persist across app restarts via the device filesystem
 
-## Key Design Decisions
+## Running the App
 
-- **100% offline SQL execution** via `expo-sqlite` on-device. No server required for queries.
-- **SQL-aware tokenizer** in `artifacts/mobile/utils/sqlDiagnostics.ts` handles statement splitting, classification, and diagnostics without simple semicolon splitting.
-- **Schema-aware autocomplete** fetches live schema from SQLite and caches it, invalidated after DDL changes.
-- **Mobile-first UI** uses Ionicons throughout for consistent, professional appearance.
-- Dark mode tokens: GitHub Dark aesthetic (`#0D1117` background, `#58A6FF` primary).
-- Light mode tokens: clean slate palette (`#F1F5F9` background, `#2563EB` primary).
+```bash
+# Install dependencies
+pnpm install
+
+# Start mobile dev server (Expo)
+pnpm --filter @workspace/mobile run dev
+
+# Start API server (optional)
+pnpm --filter @workspace/api-server run dev
+```
+
+The mobile app runs on port **18115** (Expo Metro bundler).
+Scan the QR code with Expo Go or use the web preview.
 
 ## Project Status
 
-- Phase 1 (Core Stability): ✅ 7/7
-- Phase 2 (Professional Features): ✅ 20/20
-- Phase 3 (Multi-Language): 🟡 4/13 (SQL + HTML + CSS + JS)
-- Phase 4 (Cloud & AI): ⬜ 0/6
-- Test suite: ✅ 420/420 passing
+- Phase 1 (Core Stability): ✅ 100%
+- Phase 2 (Professional Features): ✅ 100%
+- Phase 3 (Multi-Language Support): 🟡 31% (SQLite ✅, HTML ✅, CSS ✅, JS ✅)
+- Phase 4 (Cloud & AI): ⬜ 0%
+
+Full details in `PROJECT_STATUS.md` and `TRACKER.md`.
+
+## Key Files
+
+- `artifacts/mobile/` — Expo mobile app
+- `artifacts/mobile/app/(tabs)/` — Tab screens (Home, Databases, Editor, Code, History, Settings)
+- `artifacts/mobile/components/SQLEditor.tsx` — SQL editor with syntax hints, autocomplete, diagnostics
+- `artifacts/mobile/utils/sqliteManager.ts` — SQLite execution engine (expo-sqlite)
+- `artifacts/mobile/utils/sqlDiagnostics.ts` — SQL parser, statement classifier, lint warnings
+- `artifacts/api-server/` — Express API server (optional)
 
 ## User Preferences
 
-- Mobile-first design; all headers compact (22px title, insets.top + 8 padding)
-- Tab bar uses Ionicons (consistent on both iOS and Android)
-- Tab bar height: iOS 80px, Android 58px
-- Section titles: 14px, fontWeight 700
-- Card borders: hairlineWidth, borderRadius 12
-- SQL must run 100% locally; AI is optional and never required for SQL execution
+- Mobile-first UI: compact headers, tight spacing, no wasted vertical space
+- All SQL should execute locally — no internet required for core features
+- Error hints, dialect warnings, and lint diagnostics in the editor
+- Professional design: dark GitHub-inspired theme, Ionicons, clean tab bar

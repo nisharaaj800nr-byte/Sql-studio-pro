@@ -93,7 +93,7 @@ export default function SettingsScreen() {
   const { settings, updateSetting, resetSettings } = useSettings();
   const [sqliteCaps, setSqliteCaps] = useState<SQLiteCapabilities | null>(null);
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 56;
 
   useEffect(() => {
     getSQLiteCapabilitiesStandalone()
@@ -183,7 +183,7 @@ export default function SettingsScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 4, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Settings</Text>
       </View>
 

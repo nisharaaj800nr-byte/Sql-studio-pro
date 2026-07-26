@@ -27,6 +27,8 @@ interface DBStats {
 
 type ModalMode = 'create' | 'rename' | null;
 
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 56;
+
 export default function DatabasesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -126,26 +128,31 @@ export default function DatabasesScreen() {
     db.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 4, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.title, { color: colors.foreground }]}>Databases</Text>
+          {databases.length > 0 && (
+            <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.countText, { color: colors.mutedForeground }]}>{databases.length}</Text>
+            </View>
+          )}
+        </View>
         <Pressable
           onPress={handleCreate}
           hitSlop={10}
-          style={[styles.addBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+          style={[styles.addBtn, { backgroundColor: colors.primary }]}
         >
           <Ionicons name="add" size={18} color="#fff" />
         </Pressable>
       </View>
 
       {/* Search */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.background }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
+          <Ionicons name="search-outline" size={15} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -227,32 +234,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 15,
+    paddingBottom: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  countBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 20,
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  countText: { fontSize: 12, fontWeight: '600' },
   addBtn: {
-    width: 32,
-    height: 32,
+    width: 31,
+    height: 31,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 8,
   },
   searchText: { flex: 1, fontSize: 14 },
-  list: { paddingTop: 8, paddingHorizontal: 16 },
+  list: { paddingTop: 6, paddingHorizontal: 15 },
 });

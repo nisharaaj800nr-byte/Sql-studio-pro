@@ -87,13 +87,10 @@ export function SQLEditor({
     inTransaction: databaseId ? isInTransaction(databaseId) : false,
   });
 
-  // The word currently being typed (for suggestion filtering)
   const currentWord = value.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';
 
   const [schemaSuggestions, setSchemaSuggestions] = useState<string[]>([]);
 
-  // Debounced schema fetch — re-runs when the SQL changes (CTE/alias extraction)
-  // or when the databaseId changes. 300 ms debounce keeps typing responsive.
   const fetchCompletions = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!settings.autoComplete || !databaseId) {
@@ -127,7 +124,6 @@ export function SQLEditor({
     };
   }, [fetchCompletions]);
 
-  // Context-aware suggestions: if cursor is right after PRAGMA, show pragma names
   const isPragmaContext = /\bPRAGMA\s+[A-Za-z0-9_]*$/i.test(value);
 
   const suggestions = settings.autoComplete && currentWord.length > 0
@@ -147,6 +143,7 @@ export function SQLEditor({
   };
 
   const hasHardError = diagnostics.some(d => d.severity === 'error');
+  const hasWarning = diagnostics.some(d => d.severity === 'warning');
 
   const handleRun = () => {
     if (isExecuting || hasHardError) return;
@@ -167,20 +164,30 @@ export function SQLEditor({
   };
 
   const applySuggestion = (suggestion: string) => {
-    // Replace only the current word at the end of input, not a substring anywhere
     const before = value.slice(0, value.length - currentWord.length);
     onChange(before + suggestion + ' ');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     inputRef.current?.focus();
   };
 
+  const runBgColor = isExecuting
+    ? colors.muted
+    : hasHardError
+    ? colors.destructive + '22'
+    : colors.primary;
+
+  const runTextColor = isExecuting || hasHardError
+    ? hasHardError ? colors.destructive : colors.mutedForeground
+    : colors.primaryForeground;
+
   return (
     <View style={styles.container}>
-      {/* Toolbar */}
+      {/* ── Toolbar ────────────────────────────────────────────────── */}
       <View style={[styles.toolbar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        {/* DB indicator pill */}
         {databaseName ? (
-          <View style={[styles.dbPill, { backgroundColor: (databaseColor ?? colors.primary) + '22' }]}>
-            <Ionicons name="server-outline" size={12} color={databaseColor ?? colors.primary} />
+          <View style={[styles.dbPill, { backgroundColor: (databaseColor ?? colors.primary) + '1A' }]}>
+            <View style={[styles.dbDot, { backgroundColor: databaseColor ?? colors.primary }]} />
             <Text
               style={[styles.dbPillText, { color: databaseColor ?? colors.primary }]}
               numberOfLines={1}
@@ -193,47 +200,49 @@ export function SQLEditor({
         )}
 
         <View style={styles.toolbarRight}>
+          {/* Format button */}
           <Pressable onPress={handleFormat} style={styles.iconBtn} hitSlop={8}>
-            <Ionicons name="code-slash-outline" size={18} color={colors.mutedForeground} />
+            <Ionicons name="color-wand-outline" size={17} color={colors.mutedForeground} />
           </Pressable>
-          <Pressable onPress={handleClear} style={styles.iconBtn} hitSlop={8}>
-            <Ionicons name="close-circle-outline" size={18} color={colors.mutedForeground} />
-          </Pressable>
+          {/* Clear button */}
+          {value.length > 0 && (
+            <Pressable onPress={handleClear} style={styles.iconBtn} hitSlop={8}>
+              <Ionicons name="close-circle-outline" size={17} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+          {/* Run button */}
           <Pressable
             onPress={handleRun}
-            style={[
-              styles.runButton,
-              { backgroundColor: isExecuting || hasHardError ? colors.muted : colors.primary },
-            ]}
+            style={[styles.runButton, { backgroundColor: runBgColor }]}
             disabled={isExecuting || hasHardError}
           >
             {isExecuting ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <Ionicons
-                name={hasHardError ? 'ban' : 'play'}
-                size={14}
-                color={hasHardError ? colors.destructive : colors.primaryForeground}
+                name={hasHardError ? 'ban-outline' : 'play'}
+                size={13}
+                color={runTextColor}
               />
             )}
-            <Text style={[
-              styles.runText,
-              { color: isExecuting || hasHardError ? colors.mutedForeground : colors.primaryForeground },
-            ]}>
-              {isExecuting ? 'Running' : hasHardError ? 'Error' : 'Run'}
+            <Text style={[styles.runText, { color: runTextColor }]}>
+              {isExecuting ? 'Running…' : hasHardError ? 'Error' : 'Run'}
             </Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Editor: line numbers + TextInput */}
+      {/* ── Editor: line numbers + TextInput ───────────────────────── */}
       <View style={[styles.editorWrapper, { backgroundColor: colors.editorBg }]}>
         <ScrollView style={styles.editorScroll} keyboardDismissMode="none">
           <View style={styles.editorInner}>
             {/* Line numbers */}
-            <View style={[styles.lineNumbers, { backgroundColor: colors.background, borderRightColor: colors.border }]}>
+            <View style={[styles.lineNumbers, { borderRightColor: colors.border + '60' }]}>
               {Array.from({ length: lineCount }, (_, i) => (
-                <Text key={i} style={[styles.lineNum, { color: colors.editorLineNumber, lineHeight, fontSize }]}>
+                <Text
+                  key={i}
+                  style={[styles.lineNum, { color: colors.editorLineNumber, lineHeight, fontSize: fontSize - 1 }]}
+                >
                   {i + 1}
                 </Text>
               ))}
@@ -252,7 +261,7 @@ export function SQLEditor({
               spellCheck={false}
               keyboardType="ascii-capable"
               selectionColor={colors.editorCaret}
-              placeholder="-- Write your SQLite query here..."
+              placeholder="-- Write your SQLite query here…"
               placeholderTextColor={colors.editorLineNumber}
               textAlignVertical="top"
             />
@@ -260,7 +269,7 @@ export function SQLEditor({
         </ScrollView>
       </View>
 
-      {/* Diagnostics + autocomplete assist panel */}
+      {/* ── Diagnostics + autocomplete assist panel ─────────────────── */}
       {(diagnostics.length > 0 || suggestions.length > 0) && (
         <View style={[styles.assistPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           {diagnostics.length > 0 && (
@@ -297,11 +306,11 @@ export function SQLEditor({
         </View>
       )}
 
-      {/* Snippet keyboard bar */}
+      {/* ── Snippet keyboard bar ────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={[styles.snippetBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}
+        style={[styles.snippetBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}
         contentContainerStyle={styles.snippetBarContent}
         keyboardShouldPersistTaps="always"
       >
@@ -311,10 +320,15 @@ export function SQLEditor({
             onPress={() => insertSnippet(s.sql)}
             style={({ pressed }) => [
               styles.snippetChip,
-              { backgroundColor: pressed ? colors.muted : colors.card, borderColor: colors.border },
+              {
+                backgroundColor: pressed ? colors.primary + '22' : colors.muted,
+                borderColor: pressed ? colors.primary + '60' : colors.border,
+              },
             ]}
           >
-            <Text style={[styles.snippetText, { fontFamily: MONO_FONT, color: colors.sqlKeyword }]}>{s.label}</Text>
+            <Text style={[styles.snippetText, { fontFamily: MONO_FONT, color: colors.sqlKeyword }]}>
+              {s.label}
+            </Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -332,17 +346,17 @@ function DiagnosticChip({
   const color = item.severity === 'error'
     ? colors.destructive
     : item.severity === 'warning'
-      ? '#FFA657'
+      ? '#F59E0B'
       : colors.mutedForeground;
   const iconName: React.ComponentProps<typeof Ionicons>['name'] =
-    item.severity === 'error' ? 'close-circle-outline'
-    : item.severity === 'warning' ? 'warning-outline'
-    : 'information-circle-outline';
+    item.severity === 'error' ? 'close-circle'
+    : item.severity === 'warning' ? 'warning'
+    : 'information-circle';
   return (
-    <View style={[styles.diagnosticChip, { borderColor: color + '80', backgroundColor: color + '18' }]}>
-      <Ionicons name={iconName} size={13} color={color} />
+    <View style={[styles.diagnosticChip, { borderColor: color + '60', backgroundColor: color + '14' }]}>
+      <Ionicons name={iconName} size={12} color={color} />
       <Text style={[styles.diagnosticText, { color }]} numberOfLines={1}>
-        Ln {item.line}:{item.column} · {item.message}
+        {item.line > 0 ? `Ln ${item.line} · ` : ''}{item.message}
       </Text>
     </View>
   );
@@ -350,13 +364,15 @@ function DiagnosticChip({
 
 const styles = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
+
+  // Toolbar
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderBottomWidth: 1,
-    gap: 8,
+    gap: 6,
   },
   dbPill: {
     flex: 1,
@@ -365,49 +381,61 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 7,
   },
-  dbPillText: { fontSize: 12, fontWeight: '600', flex: 1 },
+  dbDot: { width: 6, height: 6, borderRadius: 3 },
+  dbPillText: { fontSize: 11, fontWeight: '600', flex: 1 },
   flex1: { flex: 1 },
-  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  iconBtn: { padding: 8 },
+  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  iconBtn: { padding: 7 },
   runButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     paddingVertical: 7,
     borderRadius: 8,
-    minWidth: 72,
+    minWidth: 68,
     justifyContent: 'center',
   },
-  runText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  runText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.1 },
+
+  // Editor
   editorWrapper: { flex: 1 },
   editorScroll: { flex: 1 },
   editorInner: { flexDirection: 'row', minHeight: '100%', paddingBottom: 20 },
   lineNumbers: {
-    paddingTop: 14,
+    paddingTop: 13,
     paddingHorizontal: 8,
-    minWidth: 42,
+    minWidth: 40,
     alignItems: 'flex-end',
     borderRightWidth: 1,
   },
-  lineNum: { fontFamily: MONO_FONT, minWidth: 20, textAlign: 'right' },
+  lineNum: { fontFamily: MONO_FONT, minWidth: 18, textAlign: 'right' },
   codeInput: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 14,
+    paddingHorizontal: 12,
+    paddingTop: 13,
     fontFamily: MONO_FONT,
     textAlignVertical: 'top',
   },
-  snippetBar: { borderTopWidth: 1, maxHeight: 42, flexGrow: 0 },
-  snippetBarContent: { paddingHorizontal: 8, paddingVertical: 6, gap: 6, alignItems: 'center' },
-  snippetChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
-  snippetText: { fontSize: 12, fontWeight: '600' },
-  assistPanel: { borderTopWidth: 1, maxHeight: 88 },
-  diagnosticContent: { paddingHorizontal: 8, paddingVertical: 5, gap: 6 },
+
+  // Snippet bar
+  snippetBar: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: 38, flexGrow: 0 },
+  snippetBarContent: { paddingHorizontal: 8, paddingVertical: 5, gap: 5, alignItems: 'center' },
+  snippetChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  snippetText: { fontSize: 11, fontWeight: '600' },
+
+  // Assist panel (diagnostics + autocomplete)
+  assistPanel: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: 80 },
+  diagnosticContent: { paddingHorizontal: 8, paddingVertical: 5, gap: 5 },
   diagnosticChip: {
-    maxWidth: 330,
+    maxWidth: 340,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -416,9 +444,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 4,
   },
-  diagnosticText: { fontSize: 11, maxWidth: 290 },
+  diagnosticText: { fontSize: 11, maxWidth: 300, flexShrink: 1 },
   suggestionContent: { paddingHorizontal: 8, paddingBottom: 5, gap: 5, alignItems: 'center' },
-  assistLabel: { fontSize: 11, marginRight: 2 },
+  assistLabel: { fontSize: 10, marginRight: 2, fontWeight: '600', letterSpacing: 0.2 },
   suggestionChip: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
   suggestionText: { fontSize: 11, fontFamily: MONO_FONT },
 });

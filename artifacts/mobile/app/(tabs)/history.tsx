@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 56;
+
 export default function HistoryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -57,24 +59,29 @@ export default function HistoryScreen() {
     ]);
   };
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 58;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>History</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 4, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.title, { color: colors.foreground }]}>History</Text>
+          {queryHistory.length > 0 && (
+            <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.countText, { color: colors.mutedForeground }]}>{queryHistory.length}</Text>
+            </View>
+          )}
+        </View>
         {queryHistory.length > 0 && (
-          <Pressable onPress={handleClear} hitSlop={10}>
-            <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+          <Pressable onPress={handleClear} hitSlop={10} style={[styles.clearBtn, { borderColor: colors.destructive + '40' }]}>
+            <Ionicons name="trash-outline" size={15} color={colors.destructive} />
           </Pressable>
         )}
       </View>
 
       {/* Search */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.background }]}>
         <View style={[styles.searchInput, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
+          <Ionicons name="search-outline" size={15} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -93,20 +100,22 @@ export default function HistoryScreen() {
 
       {/* Stats pill row */}
       {queryHistory.length > 0 && (
-        <View style={[styles.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={[styles.statsBar, { borderBottomColor: colors.border }]}>
           <Text style={[styles.statsTotal, { color: colors.mutedForeground }]}>
-            {filtered.length} {filtered.length === 1 ? 'query' : 'queries'}
-            {search ? ` matching "${search}"` : ''}
+            {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+            {search ? ` for "${search}"` : ''}
           </Text>
           <View style={styles.statsRight}>
-            <View style={[styles.pill, { backgroundColor: colors.accent + '22' }]}>
+            <View style={[styles.pill, { backgroundColor: colors.accent + '1A' }]}>
               <View style={[styles.dot, { backgroundColor: colors.accent }]} />
               <Text style={[styles.pillText, { color: colors.accent }]}>{successCount} ok</Text>
             </View>
-            <View style={[styles.pill, { backgroundColor: colors.destructive + '22' }]}>
-              <View style={[styles.dot, { backgroundColor: colors.destructive }]} />
-              <Text style={[styles.pillText, { color: colors.destructive }]}>{failCount} failed</Text>
-            </View>
+            {failCount > 0 && (
+              <View style={[styles.pill, { backgroundColor: colors.destructive + '1A' }]}>
+                <View style={[styles.dot, { backgroundColor: colors.destructive }]} />
+                <Text style={[styles.pillText, { color: colors.destructive }]}>{failCount} failed</Text>
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -134,7 +143,7 @@ export default function HistoryScreen() {
             description={
               search
                 ? `No queries match "${search}"`
-                : 'Executed queries will appear here. Run your first SQL query to get started.'
+                : 'Executed queries will appear here.'
             }
           />
         }
@@ -150,36 +159,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 15,
+    paddingBottom: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  countBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 20,
+    minWidth: 22,
+    alignItems: 'center',
+  },
+  countText: { fontSize: 12, fontWeight: '600' },
+  clearBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     gap: 8,
   },
-  searchText: { flex: 1, fontSize: 15 },
+  searchText: { flex: 1, fontSize: 14 },
   statsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingHorizontal: 15,
+    paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   statsTotal: { fontSize: 12 },
-  statsRight: { flexDirection: 'row', gap: 6 },
+  statsRight: { flexDirection: 'row', gap: 5 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

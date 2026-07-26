@@ -3,49 +3,25 @@ import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
-import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
-
-// iOS 26: NativeTabs with liquid glass
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="databases">
-        <Icon sf={{ default: 'cylinder', selected: 'cylinder.fill' }} />
-        <Label>Databases</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="editor">
-        <Icon sf={{ default: 'terminal', selected: 'terminal.fill' }} />
-        <Label>Editor</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="code">
-        <Icon sf={{ default: 'chevron.left.forwardslash.chevron.right', selected: 'chevron.left.forwardslash.chevron.right' }} />
-        <Label>Code</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="history">
-        <Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
-        <Label>History</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
-        <Label>Settings</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-function TabIcon({ name, focused, color, size }: { name: IoniconName; focused: boolean; color: string; size: number }) {
-  return <Ionicons name={name} size={size - 1} color={color} />;
+function TabIcon({
+  name,
+  focused,
+  color,
+  size,
+}: {
+  name: IoniconName;
+  focused: boolean;
+  color: string;
+  size: number;
+}) {
+  return <Ionicons name={name} size={size} color={color} />;
 }
 
-function ClassicTabLayout() {
+export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -63,85 +39,116 @@ function ClassicTabLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           elevation: 0,
-          height: isIOS ? 80 : 58,
-          paddingBottom: isIOS ? 24 : 6,
+          height: isIOS ? 78 : 56,
+          paddingBottom: isIOS ? 22 : 5,
           paddingTop: 6,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={95}
+              intensity={90}
               tint={isDark ? 'dark' : 'light'}
               style={StyleSheet.absoluteFill}
             />
           ) : (
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? colors.card : colors.card }]}
             />
           ),
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
-          letterSpacing: 0.1,
+          letterSpacing: 0.2,
+          marginTop: -1,
         },
         tabBarIconStyle: { marginBottom: -2 },
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'home' : 'home-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="databases"
         options={{
           title: 'Databases',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'server' : 'server-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'server' : 'server-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="editor"
         options={{
           title: 'Editor',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'code-slash' : 'code-slash-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'terminal' : 'terminal-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="code"
         options={{
           title: 'Code',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'layers' : 'layers-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'code-slash' : 'code-slash-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'time' : 'time-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'time' : 'time-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size, focused }) =>
-            <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? 'settings' : 'settings-outline'}
+              focused={focused}
+              color={color}
+              size={20}
+            />
+          ),
         }}
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
 }
