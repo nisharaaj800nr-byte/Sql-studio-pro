@@ -12,10 +12,10 @@
 | Phase 2B — Table & Data | 6 | 6 | 100% |
 | Phase 2C — Schema & Viz | 4 | 4 | 100% |
 | Phase 2D — Transactions | 3 | 3 | 100% |
-| Phase 3 — Multi-Language | 13 | 0 | 0% |
+| Phase 3 — Multi-Language | 13 | 1 | 8% |
 | Phase 4 — Cloud & AI | 6 | 0 | 0% |
-| Testing | 4 | 0 | 0% |
-| **TOTAL** | **50** | **27** | **54%** |
+| Testing | 4 | 1 | 25% |
+| **TOTAL** | **50** | **29** | **58%** |
 
 ---
 
@@ -57,7 +57,7 @@
 ## 🔄 Currently In Progress
 > Abhi kya kaam chal raha hai
 
-_In Progress: Phase 3.1 — SQLite polish (complete local query execution, diagnostics, and device support)_
+_Phase 3.1 complete. Next: Phase 3.2 HTML/CSS/JS live preview._
 
 ---
 
@@ -107,17 +107,76 @@ _In Progress: Phase 3.1 — SQLite polish (complete local query execution, diagn
 - `app/database/[id]/table/[name].tsx` — row CRUD, sort bar, import, BLOB detection, export
 - `app/database/[id]/index.tsx` — CreateTableModal (column definitions), ER tab
 
-### 🔄 Phase 3.1 — SQLite Engine Hardening (2026-07-26)
-**Status:** In progress
+### ✅ Phase 3.1 — Complete SQLite 3 IDE (2026-07-26)
+**Status:** Done — 216/216 tests pass, mobile workflow running
 
-**Kya kiya:**
-- SQLite-aware statement classification for CTEs, PRAGMA, EXPLAIN, transactions, DML, DDL, and maintenance statements
-- Safe multi-statement splitting that preserves quoted semicolons and trigger bodies
-- `RETURNING` result support and typed result states for PRAGMA, transactions, and maintenance
-- Schema-aware autocomplete items from local tables, views, columns, indexes, and triggers
-- Inline editor diagnostics for destructive queries, missing WHERE clauses, unsupported dialect hints, and common SQL mistakes
-- Human-readable SQLite runtime errors with actionable hints
-- Offline regression tests for the SQL lexer/classifier and warning layer
+**Kya kiya (6 files changed, 3 new test files created):**
+
+**`utils/sqlDiagnostics.ts`** — Major expansion:
+- `extractCTEAliases(sql)` — WITH cte AS (...) se alias names nikalta hai
+- `extractTableAliases(sql)` — FROM/JOIN table alias nikalta hai
+- Full non-SQLite dialect detection: SHOW TABLES, DESCRIBE, AUTO_INCREMENT, ILIKE, ROWNUM, SYSDATE, NVL, DUAL, NEXTVAL, MERGE INTO, TOP n, GETDATE, CHARINDEX, etc.
+- Improved `getStaticSQLDiagnostics`: ALTER TABLE warning, CROSS JOIN info, ATTACH warning, cleaner messages
+- `getSQLSuggestions` — expanded with SAVEPOINT/RELEASE/ROLLBACK TO, BEGIN DEFERRED/IMMEDIATE/EXCLUSIVE, UPSERT, window function keywords
+
+**`utils/sqliteManager.ts`** — Major expansion:
+- `SQLITE_PRAGMAS` — 50+ pragma names for autocomplete
+- `SQLITE_FUNCTIONS` — 90+ built-in functions (scalar, aggregate, math, datetime, window, JSON, FTS)
+- `SQLCompletionItems` — extended with `pragmas`, `functions`, `cteAliases`, `tableAliases`
+- `getSQLCompletionItems(dbId, currentSql?)` — now extracts CTEs and aliases from live SQL
+- `savepointBegin`, `savepointRelease`, `savepointRollback` — SAVEPOINT helpers with name validation
+- `beginTransaction(dbId, mode)` — supports DEFERRED / IMMEDIATE / EXCLUSIVE
+- `getSQLiteCapabilities` — now also reports `supportsGeneratedColumns`, `supportsMathFunctions`
+- `getSQLiteVersion(dbId)` — convenience shortcut
+
+**`utils/sqlHighlight.ts`** — Comprehensive expansion:
+- Added WINDOW, FILTER, OVER, PARTITION, RANGE, ROWS, GROUPS, EXCLUDED, NOTHING, DO, RAISE, NEW, OLD, EACH, PRECEDING, FOLLOWING, CURRENT, UNBOUNDED, TIES + 20 more keywords
+- Added all JSON functions (json_extract, json_set, etc.), Math functions (SQLite 3.35+), FTS functions (bm25, highlight, snippet)
+- Added X'...' blob literal tokenization, proper hex integer `0x...`, scientific notation numbers
+- Added `parameter` token type for ?, :name, @name, $name bound params
+- Extended SQL formatter with more clauses (RETURNING, PARTITION BY, ON, USING, etc.)
+
+**`components/SQLEditor.tsx`** — UX improvements:
+- 300ms debounce on schema completions — typing stays responsive
+- Passes live SQL to `getSQLCompletionItems` for CTE/alias suggestions
+- PRAGMA context detection — shows pragma names when cursor is after PRAGMA keyword
+- Expanded snippet bar: WITH (CTE template), UPSERT (ON CONFLICT DO UPDATE), JOIN templates, WINDOW, SAVEPOINT, CAST, COALESCE
+- `applySuggestion` — correctly replaces only the current word, not a substring anywhere
+
+**Test infrastructure created:**
+- `jest.config.js` + `ts-jest` setup
+- `__mocks__/expo-sqlite.js` — sql.js-backed mock (real SQLite in Node)
+- `__mocks__/expo-file-system.js`, `__mocks__/expo-haptics.js`
+- `__tests__/sqlDiagnostics.test.ts` — 124 tests for pure functions
+- `__tests__/sqliteManager.test.ts` — 92 tests for SQL execution
+
+**Test coverage:**
+- Basic CRUD (SELECT, INSERT, UPDATE, DELETE, REPLACE, UPSERT/ON CONFLICT)
+- JOINs (INNER, LEFT, CROSS, subqueries, correlated subqueries)
+- CTE and recursive CTE
+- Aggregates and window functions (ROW_NUMBER, RANK)
+- DDL and constraints (PK, AUTOINCREMENT, NOT NULL, UNIQUE, CHECK, DEFAULT, ALTER, DROP, CREATE AS SELECT)
+- Indexes, views, and triggers
+- Transactions (BEGIN/COMMIT/ROLLBACK) and savepoints (SAVEPOINT/RELEASE/ROLLBACK TO)
+- PRAGMA read/write
+- EXPLAIN and EXPLAIN QUERY PLAN
+- Bound parameters + SQL injection regression
+- Multiple statements
+- Comments and quoted identifiers
+- Result truncation (with and without maxRows)
+- Error handling (invalid SQL, no such table, empty table, empty input)
+- Import/export (CSV, JSON, SQL dump)
+- Row-level CRUD helpers
+- Integrity check
+- SQLite capabilities detection
+- Autocomplete (tables, columns, pragmas, functions, CTE/alias extraction)
+- Foreign key info
+- Date/time functions (strftime, date, julianday)
+- String functions (upper, lower, substr, replace, trim, instr)
+- CASE expressions
+- NULL functions (COALESCE, IFNULL, NULLIF)
+- CAST and COLLATE
+- Set operations (UNION ALL, UNION, INTERSECT, EXCEPT)
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,13 @@ import { useColors } from '@/hooks/useColors';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { formatSQL } from '@/utils/sqlHighlight';
-import { getSQLSuggestions, getStaticSQLDiagnostics, type SQLDiagnostic } from '@/utils/sqlDiagnostics';
+import {
+  extractCTEAliases,
+  extractTableAliases,
+  getSQLSuggestions,
+  getStaticSQLDiagnostics,
+  type SQLDiagnostic,
+} from '@/utils/sqlDiagnostics';
 import { getSQLCompletionItems } from '@/utils/sqliteManager';
 import * as Haptics from 'expo-haptics';
 
@@ -27,19 +33,28 @@ const SQL_SNIPPETS = [
   { label: 'ORDER BY', sql: '\nORDER BY  ASC' },
   { label: 'LIMIT', sql: '\nLIMIT 100' },
   { label: 'JOIN', sql: '\nINNER JOIN  ON .id = .id' },
+  { label: 'LEFT JOIN', sql: '\nLEFT JOIN  ON .id = .id' },
   { label: 'GROUP BY', sql: '\nGROUP BY ' },
   { label: 'HAVING', sql: '\nHAVING COUNT(*) > 1' },
+  { label: 'WITH', sql: 'WITH cte AS (\n  SELECT * FROM \n)\nSELECT * FROM cte' },
   { label: 'INSERT', sql: 'INSERT INTO  (col1, col2)\nVALUES (val1, val2)' },
+  { label: 'UPSERT', sql: 'INSERT INTO  (col1, col2)\nVALUES (val1, val2)\nON CONFLICT (col1) DO UPDATE SET col2 = EXCLUDED.col2' },
   { label: 'UPDATE', sql: 'UPDATE \nSET col = val\nWHERE id = 1' },
   { label: 'DELETE', sql: 'DELETE FROM \nWHERE id = 1' },
   { label: 'CREATE TABLE', sql: 'CREATE TABLE  (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name TEXT NOT NULL,\n  created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n)' },
+  { label: 'CREATE INDEX', sql: 'CREATE INDEX idx_ ON  (column)' },
   { label: 'ALTER', sql: 'ALTER TABLE  ADD COLUMN  TEXT' },
   { label: 'DROP', sql: 'DROP TABLE IF EXISTS ' },
   { label: 'PRAGMA', sql: 'PRAGMA table_info()' },
   { label: 'EXPLAIN', sql: 'EXPLAIN QUERY PLAN\n' },
+  { label: 'BEGIN', sql: 'BEGIN;\n\n-- your statements here\n\nCOMMIT;' },
+  { label: 'SAVEPOINT', sql: 'SAVEPOINT sp1;\n\n-- your statements here\n\nRELEASE SAVEPOINT sp1;' },
   { label: 'COUNT', sql: 'SELECT COUNT(*) FROM ' },
   { label: 'DISTINCT', sql: 'SELECT DISTINCT  FROM ' },
-  { label: 'NULL', sql: ' IS NULL' },
+  { label: 'WINDOW', sql: 'SELECT\n  *,\n  ROW_NUMBER() OVER (PARTITION BY  ORDER BY ) AS rn\nFROM ' },
+  { label: 'IS NULL', sql: ' IS NULL' },
+  { label: 'COALESCE', sql: 'COALESCE(, )' },
+  { label: 'CAST', sql: 'CAST( AS INTEGER)' },
 ];
 
 interface SQLEditorProps {
@@ -64,41 +79,63 @@ export function SQLEditor({
   const colors = useColors();
   const { settings } = useSettings();
   const inputRef = useRef<TextInput>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lineCount = value.split('\n').length;
   const fontSize = settings.fontSize;
   const lineHeight = Math.round(fontSize * 1.6);
   const diagnostics = getStaticSQLDiagnostics(value);
+
+  // The word currently being typed (for suggestion filtering)
   const currentWord = value.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';
+
   const [schemaSuggestions, setSchemaSuggestions] = useState<string[]>([]);
-  useEffect(() => {
-    let cancelled = false;
+
+  // Debounced schema fetch — re-runs when the SQL changes (CTE/alias extraction)
+  // or when the databaseId changes. 300 ms debounce keeps typing responsive.
+  const fetchCompletions = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!settings.autoComplete || !databaseId) {
       setSchemaSuggestions([]);
       return;
     }
-    getSQLCompletionItems(databaseId)
-      .then(items => {
-        if (cancelled) return;
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const items = await getSQLCompletionItems(databaseId, value);
         setSchemaSuggestions([
           ...items.tables,
           ...items.views,
           ...items.columns,
           ...items.indexes,
           ...items.triggers,
+          ...items.pragmas,
+          ...items.functions,
+          ...items.cteAliases,
+          ...items.tableAliases,
         ]);
-      })
-      .catch(() => {
-        if (!cancelled) setSchemaSuggestions([]);
-      });
+      } catch {
+        setSchemaSuggestions([]);
+      }
+    }, 300);
+  }, [databaseId, settings.autoComplete, value]);
+
+  useEffect(() => {
+    fetchCompletions();
     return () => {
-      cancelled = true;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [databaseId, settings.autoComplete]);
-  const suggestions = settings.autoComplete
+  }, [fetchCompletions]);
+
+  // Context-aware suggestions: if cursor is right after PRAGMA, show pragma names
+  const isPragmaContext = /\bPRAGMA\s+[A-Za-z0-9_]*$/i.test(value);
+
+  const suggestions = settings.autoComplete && currentWord.length > 0
     ? Array.from(new Set([
       ...getSQLSuggestions(currentWord),
-      ...schemaSuggestions.filter(item => item.toUpperCase().startsWith(currentWord.toUpperCase())),
-    ])).slice(0, 10)
+      ...(isPragmaContext
+        ? schemaSuggestions
+        : schemaSuggestions.filter(item => item.toUpperCase().startsWith(currentWord.toUpperCase()))
+      ),
+    ])).slice(0, 12)
     : [];
 
   const handleFormat = () => {
@@ -125,6 +162,14 @@ export function SQLEditor({
     inputRef.current?.focus();
   };
 
+  const applySuggestion = (suggestion: string) => {
+    // Replace only the current word at the end of input, not a substring anywhere
+    const before = value.slice(0, value.length - currentWord.length);
+    onChange(before + suggestion + ' ');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    inputRef.current?.focus();
+  };
+
   return (
     <View style={styles.container}>
       {/* Toolbar */}
@@ -144,30 +189,15 @@ export function SQLEditor({
         )}
 
         <View style={styles.toolbarRight}>
-          <Pressable
-            onPress={handleFormat}
-            style={styles.iconBtn}
-            hitSlop={8}
-          >
+          <Pressable onPress={handleFormat} style={styles.iconBtn} hitSlop={8}>
             <MaterialCommunityIcons name="code-braces" size={18} color={colors.mutedForeground} />
           </Pressable>
-
-          <Pressable
-            onPress={handleClear}
-            style={styles.iconBtn}
-            hitSlop={8}
-          >
+          <Pressable onPress={handleClear} style={styles.iconBtn} hitSlop={8}>
             <MaterialIcons name="clear-all" size={18} color={colors.mutedForeground} />
           </Pressable>
-
           <Pressable
             onPress={handleRun}
-            style={[
-              styles.runButton,
-              {
-                backgroundColor: isExecuting ? colors.muted : colors.primary,
-              },
-            ]}
+            style={[styles.runButton, { backgroundColor: isExecuting ? colors.muted : colors.primary }]}
             disabled={isExecuting}
           >
             {isExecuting ? (
@@ -208,7 +238,7 @@ export function SQLEditor({
               spellCheck={false}
               keyboardType="ascii-capable"
               selectionColor={colors.editorCaret}
-              placeholder="-- Write your SQL here..."
+              placeholder="-- Write your SQLite query here..."
               placeholderTextColor={colors.editorLineNumber}
               textAlignVertical="top"
             />
@@ -216,6 +246,7 @@ export function SQLEditor({
         </ScrollView>
       </View>
 
+      {/* Diagnostics + autocomplete assist panel */}
       {(diagnostics.length > 0 || suggestions.length > 0) && (
         <View style={[styles.assistPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           {diagnostics.length > 0 && (
@@ -241,11 +272,7 @@ export function SQLEditor({
               {suggestions.map(suggestion => (
                 <Pressable
                   key={suggestion}
-                  onPress={() => {
-                    onChange(value.slice(0, value.length - currentWord.length) + suggestion + ' ');
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    inputRef.current?.focus();
-                  }}
+                  onPress={() => applySuggestion(suggestion)}
                   style={[styles.suggestionChip, { backgroundColor: colors.muted, borderColor: colors.border }]}
                 >
                   <Text style={[styles.suggestionText, { color: colors.sqlKeyword }]}>{suggestion}</Text>
@@ -270,10 +297,7 @@ export function SQLEditor({
             onPress={() => insertSnippet(s.sql)}
             style={({ pressed }) => [
               styles.snippetChip,
-              {
-                backgroundColor: pressed ? colors.muted : colors.card,
-                borderColor: colors.border,
-              },
+              { backgroundColor: pressed ? colors.muted : colors.card, borderColor: colors.border },
             ]}
           >
             <Text style={[styles.snippetText, { fontFamily: MONO_FONT, color: colors.sqlKeyword }]}>{s.label}</Text>
@@ -354,11 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     borderRightWidth: 1,
   },
-  lineNum: {
-    fontFamily: MONO_FONT,
-    minWidth: 20,
-    textAlign: 'right',
-  },
+  lineNum: { fontFamily: MONO_FONT, minWidth: 20, textAlign: 'right' },
   codeInput: {
     flex: 1,
     paddingHorizontal: 14,
@@ -366,27 +386,10 @@ const styles = StyleSheet.create({
     fontFamily: MONO_FONT,
     textAlignVertical: 'top',
   },
-  snippetBar: {
-    borderTopWidth: 1,
-    maxHeight: 42,
-    flexGrow: 0,
-  },
-  snippetBarContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    gap: 6,
-    alignItems: 'center',
-  },
-  snippetChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  snippetText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  snippetBar: { borderTopWidth: 1, maxHeight: 42, flexGrow: 0 },
+  snippetBarContent: { paddingHorizontal: 8, paddingVertical: 6, gap: 6, alignItems: 'center' },
+  snippetChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  snippetText: { fontSize: 12, fontWeight: '600' },
   assistPanel: { borderTopWidth: 1, maxHeight: 88 },
   diagnosticContent: { paddingHorizontal: 8, paddingVertical: 5, gap: 6 },
   diagnosticChip: {

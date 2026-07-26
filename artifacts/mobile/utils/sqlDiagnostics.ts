@@ -35,8 +35,14 @@ interface LexToken {
 
 const DML = new Set(['INSERT', 'UPDATE', 'DELETE', 'REPLACE']);
 const DDL = new Set(['CREATE', 'ALTER', 'DROP']);
-const TRANSACTIONS = new Set(['BEGIN', 'COMMIT', 'END', 'ROLLBACK', 'SAVEPOINT', 'RELEASE']);
+const TRANSACTIONS = new Set([
+  'BEGIN', 'COMMIT', 'END', 'ROLLBACK', 'SAVEPOINT', 'RELEASE',
+]);
 const MAINTENANCE = new Set(['VACUUM', 'ANALYZE', 'REINDEX', 'ATTACH', 'DETACH']);
+
+// Keywords that signal non-SQLite dialects (PostgreSQL, MySQL, SQL Server, Oracle)
+const OTHER_DIALECT_RE =
+  /\b(ILIKE|SERIAL|AUTO_INCREMENT|NVARCHAR|GETDATE\s*\(|SHOW\s+(?:TABLES|DATABASES|COLUMNS|CREATE|STATUS|INDEX)\b|DESCRIBE\s+\w+|EXPLAIN\s+ANALYZE|ROWNUM\b|SYSDATE\b|NVL\s*\(|DECODE\s*\(|DUAL\b|NEXTVAL\b|CURRVAL\b|TRUNCATE\s+TABLE\b|IDENTITY\s*\(|CHARINDEX\s*\(|PATINDEX\s*\(|DATEPART\s*\(|DATEDIFF\s*\(|DATEADD\s*\(|STUFF\s*\(|ISNULL\s*\(|CONVERT\s*\(|TRY_CAST\s*\(|TRY_CONVERT\s*\(|NEWID\s*\(|SCOPE_IDENTITY\s*\(|@@ROWCOUNT\b|@@IDENTITY\b|OUTPUT\s+INSERTED\b|MERGE\s+INTO\b|TOP\s+\d+\b)/i;
 
 function isWordStart(ch: string | undefined): boolean {
   return !!ch && /[A-Za-z_]/.test(ch);
@@ -50,10 +56,7 @@ function skipQuoted(sql: string, start: number, quote: string): number {
   let i = start + 1;
   while (i < sql.length) {
     if (sql[i] === quote) {
-      if (sql[i + 1] === quote) {
-        i += 2;
-        continue;
-      }
+      if (sql[i + 1] === quote) { i += 2; continue; }
       return i + 1;
     }
     i++;
@@ -68,10 +71,7 @@ function lex(sql: string): LexToken[] {
 
   while (i < sql.length) {
     const ch = sql[i];
-    if (/\s/.test(ch)) {
-      i++;
-      continue;
-    }
+    if (/\s/.test(ch)) { i++; continue; }
     if (ch === '-' && sql[i + 1] === '-') {
       const end = sql.indexOf('\n', i + 2);
       i = end === -1 ? sql.length : end + 1;
@@ -162,11 +162,13 @@ export function classifySQL(sql: string): SQLStatementKind {
 export function statementReturnsRows(sql: string, kind = classifySQL(sql)): boolean {
   if (kind === 'select' || kind === 'explain') return true;
   if (kind === 'pragma') {
+    // PRAGMA name=value writes; PRAGMA name reads (returns rows)
     return !findTopLevelKeyword(lex(sql), '=');
   }
   if (kind === 'dml') {
     return !!findTopLevelKeyword(lex(sql), 'RETURNING');
   }
+  // ATTACH DATABASE returns no rows; same for other maintenance
   return false;
 }
 
@@ -196,42 +198,20 @@ export function splitSQLStatements(sql: string): string[] {
       continue;
     }
     if (blockComment) {
-      if (ch === '*' && next === '/') {
-        blockComment = false;
-        i += 2;
-      } else {
-        i++;
-      }
+      if (ch === '*' && next === '/') { blockComment = false; i += 2; }
+      else i++;
       continue;
     }
     if (quote) {
       if (ch === quote) {
-        if (next === quote) {
-          i += 2;
-        } else {
-          quote = null;
-          i++;
-        }
-      } else {
-        i++;
-      }
+        if (next === quote) { i += 2; }
+        else { quote = null; i++; }
+      } else { i++; }
       continue;
     }
-    if (ch === '-' && next === '-') {
-      lineComment = true;
-      i += 2;
-      continue;
-    }
-    if (ch === '/' && next === '*') {
-      blockComment = true;
-      i += 2;
-      continue;
-    }
-    if (ch === "'" || ch === '"' || ch === '`') {
-      quote = ch;
-      i++;
-      continue;
-    }
+    if (ch === '-' && next === '-') { lineComment = true; i += 2; continue; }
+    if (ch === '/' && next === '*') { blockComment = true; i += 2; continue; }
+    if (ch === "'" || ch === '"' || ch === '`') { quote = ch; i++; continue; }
     if (ch === '[') {
       const end = sql.indexOf(']', i + 1);
       i = end === -1 ? sql.length : end + 1;
@@ -295,61 +275,116 @@ export function getStaticSQLDiagnostics(sql: string): SQLDiagnostic[] {
     return diagnostics;
   }
 
+  // Unterminated block comment
   if (sql.includes('/*') && !sql.includes('*/')) {
     diagnostics.push(diagnostic(sql, sql.indexOf('/*'), 'error', 'UNTERMINATED_COMMENT', 'Block comment is not closed.'));
   }
-  const openParens = (sql.match(/\(/g) ?? []).length;
-  const closeParens = (sql.match(/\)/g) ?? []).length;
-  if (openParens !== closeParens) {
+
+  // Unbalanced parens (rough check, excludes content inside strings/comments)
+  let parenDepth = 0;
+  let firstUnbalanced = -1;
+  for (let i = 0; i < sql.length; i++) {
+    if (sql[i] === '(') { parenDepth++; }
+    else if (sql[i] === ')') {
+      parenDepth--;
+      if (parenDepth < 0 && firstUnbalanced === -1) firstUnbalanced = i;
+    }
+  }
+  if (parenDepth !== 0 || firstUnbalanced !== -1) {
+    const pos = firstUnbalanced !== -1 ? firstUnbalanced : sql.lastIndexOf('(');
     diagnostics.push(diagnostic(
-      sql,
-      sql.lastIndexOf(openParens > closeParens ? '(' : ')'),
-      'error',
-      'UNBALANCED_PARENS',
-      openParens > closeParens ? 'A closing parenthesis is missing.' : 'There is an extra closing parenthesis.',
+      sql, pos, 'error', 'UNBALANCED_PARENS',
+      parenDepth > 0 ? 'A closing parenthesis is missing.' : 'There is an extra closing parenthesis.',
     ));
   }
+
   const statements = splitSQLStatements(sql);
   if (statements.length > 1) {
-    diagnostics.push(diagnostic(sql, 0, 'info', 'MULTI_STATEMENT', `${statements.length} SQLite statements will run in order.`));
+    diagnostics.push(diagnostic(sql, 0, 'info', 'MULTI_STATEMENT',
+      `${statements.length} SQLite statements will run in order.`));
   }
 
   const kind = classifySQL(sql);
   if (kind === 'unknown') {
-    diagnostics.push(diagnostic(sql, first.start, 'error', 'UNSUPPORTED_STATEMENT', `SQLite statement "${first.value}" is not recognized.`));
+    diagnostics.push(diagnostic(sql, first.start, 'error', 'UNSUPPORTED_STATEMENT',
+      `"${first.value}" is not a recognised SQLite statement.`));
   }
-  const upper = sql.toUpperCase();
+
   const where = findTopLevelKeyword(tokens, 'WHERE');
-  if ((kind === 'dml') && (first.upper === 'DELETE' || first.upper === 'UPDATE') && !where) {
-    diagnostics.push(diagnostic(sql, first.start, 'warning', 'NO_WHERE', `${first.upper} without WHERE affects every matching row.`));
+
+  // DELETE / UPDATE without WHERE
+  if (kind === 'dml' && (first.upper === 'DELETE' || first.upper === 'UPDATE') && !where) {
+    diagnostics.push(diagnostic(sql, first.start, 'warning', 'NO_WHERE',
+      `${first.upper} without WHERE will affect every row in the table.`));
   }
+
+  // SELECT *
   if (kind === 'select' && /\bSELECT\s+\*/i.test(sql)) {
-    diagnostics.push(diagnostic(sql, first.start, 'info', 'SELECT_STAR', 'SELECT * returns every column; select only the columns you need for large tables.'));
+    diagnostics.push(diagnostic(sql, first.start, 'info', 'SELECT_STAR',
+      'SELECT * returns every column. Specify columns explicitly for large tables.'));
   }
+
+  // SELECT without LIMIT
   if (kind === 'select' && !/\bLIMIT\b/i.test(sql) && /\bFROM\b/i.test(sql)) {
-    diagnostics.push(diagnostic(sql, first.start, 'info', 'NO_LIMIT', 'This query has no LIMIT. The result panel will still enforce your row limit.'));
+    diagnostics.push(diagnostic(sql, first.start, 'info', 'NO_LIMIT',
+      'No LIMIT clause — the result panel will still enforce your row cap.'));
   }
-  if (/\b(CROSS\s+JOIN|JOIN\s+[^;]+\bJOIN\b)/i.test(sql) && !/\bON\b/i.test(sql) && !/\bUSING\b/i.test(sql)) {
-    diagnostics.push(diagnostic(sql, upper.indexOf('JOIN'), 'warning', 'CARTESIAN_JOIN', 'This JOIN has no ON or USING clause and may create a Cartesian product.'));
+
+  // Cartesian JOIN (JOIN without ON / USING)
+  if (/\bJOIN\b/i.test(sql) && !/\b(ON|USING)\b/i.test(sql)) {
+    const joinIdx = sql.toUpperCase().indexOf('JOIN');
+    diagnostics.push(diagnostic(sql, joinIdx, 'warning', 'CARTESIAN_JOIN',
+      'This JOIN has no ON or USING clause and may produce a Cartesian product.'));
   }
-  if (/\b(ILIKE|SERIAL|AUTO_INCREMENT|TOP\s+\d+|NVARCHAR|GETDATE)\b/i.test(sql)) {
-    const match = sql.match(/\b(ILIKE|SERIAL|AUTO_INCREMENT|TOP\s+\d+|NVARCHAR|GETDATE)\b/i);
-    diagnostics.push(diagnostic(sql, match?.index ?? 0, 'warning', 'OTHER_DIALECT', 'This looks like PostgreSQL, MySQL, or SQL Server syntax. SQL Studio Pro executes SQLite SQL locally.'));
+
+  // CROSS JOIN always flagged as cartesian
+  if (/\bCROSS\s+JOIN\b/i.test(sql)) {
+    const idx = sql.toUpperCase().indexOf('CROSS');
+    diagnostics.push(diagnostic(sql, idx, 'info', 'CROSS_JOIN',
+      'CROSS JOIN produces a Cartesian product — every row × every row.'));
   }
-  const destructiveToken = tokens.find(token =>
-    !token.quoted && (token.upper === 'DELETE' || token.upper === 'DROP' ||
-      token.upper === 'ALTER' || token.upper === 'VACUUM' ||
-      token.upper === 'ATTACH' || token.upper === 'DETACH')
+
+  // Non-SQLite dialect detection
+  const dialectMatch = OTHER_DIALECT_RE.exec(sql);
+  if (dialectMatch) {
+    diagnostics.push(diagnostic(sql, dialectMatch.index, 'warning', 'OTHER_DIALECT',
+      `"${dialectMatch[0].split(/\s/)[0]}" looks like PostgreSQL, MySQL, SQL Server, or Oracle syntax. SQL Studio Pro executes SQLite locally.`));
+  }
+
+  // Destructive operations — warn (not block)
+  const destructiveToken = tokens.find(t =>
+    !t.quoted && (t.upper === 'DROP' || t.upper === 'TRUNCATE')
   );
   if (destructiveToken) {
-    diagnostics.push(diagnostic(sql, destructiveToken.start, 'warning', 'DESTRUCTIVE_SQL', 'This statement can change or remove database data or structure. Review it before running.'));
+    diagnostics.push(diagnostic(sql, destructiveToken.start, 'warning', 'DESTRUCTIVE_SQL',
+      `${destructiveToken.upper} permanently removes data or schema objects. Review before running.`));
   }
-  if (kind === 'pragma' && /=/.test(sql)) {
-    diagnostics.push(diagnostic(sql, first.start, 'warning', 'PRAGMA_WRITE', 'This PRAGMA changes database settings rather than returning rows.'));
+
+  // ALTER TABLE
+  if (kind === 'ddl' && first.upper === 'ALTER') {
+    diagnostics.push(diagnostic(sql, first.start, 'warning', 'ALTER_TABLE',
+      'ALTER TABLE modifies schema structure. Back up your data first.'));
   }
+
+  // VACUUM / REINDEX / ANALYZE
   if (kind === 'maintenance' && /\b(VACUUM|REINDEX|ANALYZE)\b/i.test(sql)) {
-    diagnostics.push(diagnostic(sql, first.start, 'info', 'MAINTENANCE', 'Database maintenance may take longer on large local files.'));
+    diagnostics.push(diagnostic(sql, first.start, 'info', 'MAINTENANCE',
+      'Maintenance commands can take longer on large database files.'));
   }
+
+  // Destructive PRAGMA (write PRAGMA)
+  if (kind === 'pragma' && /=/.test(sql)) {
+    diagnostics.push(diagnostic(sql, first.start, 'warning', 'PRAGMA_WRITE',
+      'This PRAGMA changes a database setting rather than reading one.'));
+  }
+
+  // ATTACH DATABASE
+  if (kind === 'maintenance' && first.upper === 'ATTACH') {
+    diagnostics.push(diagnostic(sql, first.start, 'warning', 'ATTACH_DATABASE',
+      'ATTACH DATABASE opens an additional database file. Queries can then span both databases.'));
+  }
+
+  // Query running in explicit transaction (heuristic: user wrote BEGIN previously — we can't detect state here, so skip)
 
   return diagnostics;
 }
@@ -358,24 +393,126 @@ export function isDestructiveSQLText(sql: string): boolean {
   return splitSQLStatements(sql).some(statement => {
     const tokens = lex(statement);
     return tokens.some(token =>
-      !token.quoted && (token.upper === 'DELETE' || token.upper === 'DROP' ||
+      !token.quoted && (
+        token.upper === 'DELETE' || token.upper === 'DROP' ||
         token.upper === 'ALTER' || token.upper === 'VACUUM' ||
-        token.upper === 'ATTACH' || token.upper === 'DETACH')
+        token.upper === 'ATTACH' || token.upper === 'DETACH' ||
+        token.upper === 'TRUNCATE'
+      )
     );
   });
+}
+
+/**
+ * Extract CTE alias names from a WITH clause.
+ * e.g. WITH foo AS (...), bar AS (...) → ['foo', 'bar']
+ */
+export function extractCTEAliases(sql: string): string[] {
+  const aliases: string[] = [];
+  const tokens = lex(sql);
+  let seenWith = false;
+
+  const SKIP = new Set([
+    'WITH', 'RECURSIVE', 'MATERIALIZED', 'NOT',
+    'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'REPLACE',
+    'CREATE', 'ALTER', 'DROP', 'AS',
+  ]);
+
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (!t.quoted && t.upper === 'WITH' && t.depth === 0) {
+      seenWith = true;
+      continue;
+    }
+    if (!seenWith) continue;
+    if (t.depth !== 0) continue;
+    if (t.quoted) continue;
+
+    // Once we hit a DML/SELECT keyword at top level (after the CTEs), stop
+    if (['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'REPLACE'].includes(t.upper)) break;
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(t.value) && !SKIP.has(t.upper)) {
+      // Peek ahead for AS or (
+      let j = i + 1;
+      while (j < tokens.length && (tokens[j].depth !== 0 || /^[\s,]$/.test(tokens[j].value))) j++;
+      const next = tokens[j];
+      if (next && (next.upper === 'AS' || next.value === '(')) {
+        aliases.push(t.value);
+      }
+    }
+  }
+  return [...new Set(aliases)];
+}
+
+/**
+ * Extract table aliases from FROM and JOIN clauses.
+ * e.g. FROM users u JOIN orders o ON ... → ['u', 'o']
+ */
+export function extractTableAliases(sql: string): string[] {
+  const aliases: string[] = [];
+  const tokens = lex(sql);
+
+  const JOIN_LIKE = new Set(['FROM', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'CROSS', 'NATURAL', 'FULL', 'OUTER']);
+  const CLAUSE_STARTS = new Set([
+    'WHERE', 'ON', 'SET', 'USING', 'GROUP', 'ORDER', 'HAVING', 'LIMIT',
+    'OFFSET', 'UNION', 'INTERSECT', 'EXCEPT', 'SELECT', 'INSERT', 'UPDATE',
+    'DELETE', 'WITH',
+  ]);
+
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.quoted || t.depth !== 0) continue;
+    if (!JOIN_LIKE.has(t.upper)) continue;
+
+    // Skip JOIN qualifiers (LEFT, RIGHT, INNER, OUTER, etc.) until we reach JOIN or FROM
+    let k = i + 1;
+    while (k < tokens.length && JOIN_LIKE.has(tokens[k].upper) && !tokens[k].quoted) k++;
+    if (k >= tokens.length) continue;
+
+    const tableTok = tokens[k];
+    // Table name must be an identifier, not a subquery
+    if (tableTok.quoted || !(/^[A-Za-z_]/.test(tableTok.value)) || CLAUSE_STARTS.has(tableTok.upper)) continue;
+    k++;
+
+    // Skip optional AS
+    if (k < tokens.length && !tokens[k].quoted && tokens[k].upper === 'AS') k++;
+
+    // Next identifier is the alias
+    if (k < tokens.length && !tokens[k].quoted && /^[A-Za-z_][A-Za-z0-9_]*$/.test(tokens[k].value) &&
+        !CLAUSE_STARTS.has(tokens[k].upper) &&
+        !JOIN_LIKE.has(tokens[k].upper) &&
+        tokens[k].value.toUpperCase() !== tableTok.value.toUpperCase()) {
+      aliases.push(tokens[k].value);
+    }
+  }
+  return [...new Set(aliases)];
 }
 
 export function getSQLSuggestions(prefix: string): string[] {
   const keywords = [
     'SELECT', 'FROM', 'WHERE', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM',
-    'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE', 'CREATE INDEX', 'CREATE VIEW',
-    'CREATE TRIGGER', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'ON', 'GROUP BY', 'HAVING',
-    'ORDER BY', 'LIMIT', 'OFFSET', 'WITH', 'RETURNING', 'BEGIN', 'COMMIT', 'ROLLBACK',
-    'SAVEPOINT', 'PRAGMA', 'EXPLAIN QUERY PLAN', 'VACUUM', 'ANALYZE',
+    'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE', 'CREATE INDEX', 'CREATE UNIQUE INDEX',
+    'CREATE VIEW', 'CREATE TRIGGER', 'DROP VIEW', 'DROP INDEX', 'DROP TRIGGER',
+    'JOIN', 'LEFT JOIN', 'INNER JOIN', 'CROSS JOIN',
+    'ON', 'USING', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET',
+    'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT',
+    'WITH', 'RECURSIVE', 'RETURNING',
+    'BEGIN', 'BEGIN DEFERRED', 'BEGIN IMMEDIATE', 'BEGIN EXCLUSIVE',
+    'COMMIT', 'ROLLBACK', 'SAVEPOINT', 'RELEASE', 'ROLLBACK TO',
+    'PRAGMA', 'EXPLAIN', 'EXPLAIN QUERY PLAN',
+    'VACUUM', 'ANALYZE', 'REINDEX', 'ATTACH DATABASE', 'DETACH DATABASE',
+    'INSERT OR REPLACE', 'INSERT OR IGNORE', 'INSERT OR ABORT', 'INSERT OR FAIL',
+    'ON CONFLICT', 'DO NOTHING', 'DO UPDATE SET',
+    'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+    'CAST', 'COLLATE', 'OVER', 'PARTITION BY', 'FILTER',
+    'IS NULL', 'IS NOT NULL', 'NOT IN', 'NOT EXISTS', 'NOT LIKE',
+    'BETWEEN', 'LIKE', 'GLOB', 'REGEXP',
+    'ASC', 'DESC', 'DISTINCT', 'ALL',
+    'WITHOUT ROWID', 'STRICT',
   ];
   const normalized = prefix.trim().toUpperCase();
   if (!normalized) return keywords.slice(0, 8);
-  return keywords.filter(keyword => keyword.startsWith(normalized)).slice(0, 8);
+  return keywords.filter(k => k.startsWith(normalized)).slice(0, 10);
 }
 
 export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
@@ -386,14 +523,14 @@ export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
     return {
       title: 'SQLite syntax error',
       message: raw,
-      hint: 'Check commas, parentheses, quotes, and the order of SQLite clauses.',
+      hint: 'Check commas, parentheses, quotes, and the order of clauses.',
     };
   }
   if (normalized.includes('no such table')) {
     return {
       title: 'Table not found',
       message: raw,
-      hint: 'Check the table name or refresh the database schema.',
+      hint: 'Check the table name or run the schema view to see available tables.',
     };
   }
   if (normalized.includes('no such column')) {
@@ -410,25 +547,41 @@ export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
       hint: 'This function may not be compiled into the SQLite version on this device.',
     };
   }
+  if (normalized.includes('no such index')) {
+    return { title: 'Index not found', message: raw };
+  }
+  if (normalized.includes('no such trigger')) {
+    return { title: 'Trigger not found', message: raw };
+  }
+  if (normalized.includes('no such view')) {
+    return { title: 'View not found', message: raw };
+  }
+  if (normalized.includes('ambiguous column')) {
+    return {
+      title: 'Ambiguous column name',
+      message: raw,
+      hint: 'Prefix the column with its table name or alias (e.g. table.column).',
+    };
+  }
   if (normalized.includes('unique constraint')) {
     return {
       title: 'Unique constraint failed',
       message: raw,
-      hint: 'Use a different value or use INSERT ... ON CONFLICT when that is the intended behavior.',
+      hint: 'Use a different value or INSERT … ON CONFLICT DO NOTHING / DO UPDATE.',
     };
   }
   if (normalized.includes('foreign key constraint')) {
     return {
       title: 'Foreign-key constraint failed',
       message: raw,
-      hint: 'Insert the referenced parent row first or verify the foreign-key value.',
+      hint: 'Insert the referenced parent row first, or check the foreign-key value.',
     };
   }
   if (normalized.includes('not null constraint')) {
     return {
       title: 'Required value is missing',
       message: raw,
-      hint: 'Provide a value for every NOT NULL column without a default.',
+      hint: 'Provide a value for every NOT NULL column that has no DEFAULT.',
     };
   }
   if (normalized.includes('check constraint')) {
@@ -452,11 +605,46 @@ export function formatSQLiteError(error: unknown): SQLiteErrorDetails {
       hint: 'Open a writable local database file before running a write query.',
     };
   }
-  if (normalized.includes('too many sql variables')) {
+  if (normalized.includes('disk image is malformed') || normalized.includes('file is not a database')) {
+    return {
+      title: 'Database file is corrupt',
+      message: raw,
+      hint: 'Use the integrity check tool to diagnose the file, or restore from a backup.',
+    };
+  }
+  if (normalized.includes('disk') && normalized.includes('full')) {
+    return {
+      title: 'Disk full',
+      message: raw,
+      hint: 'Free up device storage space and try again.',
+    };
+  }
+  if (normalized.includes('too many sql variables') || normalized.includes('too many variables')) {
     return {
       title: 'Too many bound parameters',
       message: raw,
       hint: 'Split this operation into smaller batches.',
+    };
+  }
+  if (normalized.includes('constraint failed')) {
+    return {
+      title: 'Constraint failed',
+      message: raw,
+      hint: 'A table constraint was violated. Check NOT NULL, UNIQUE, CHECK, and FK constraints.',
+    };
+  }
+  if (normalized.includes('cannot attach')) {
+    return {
+      title: 'ATTACH failed',
+      message: raw,
+      hint: 'Check that the database path is correct and the file is accessible.',
+    };
+  }
+  if (normalized.includes('savepoint')) {
+    return {
+      title: 'Savepoint error',
+      message: raw,
+      hint: 'Use SAVEPOINT name / RELEASE name / ROLLBACK TO name.',
     };
   }
   return { title: 'SQLite query failed', message: raw };

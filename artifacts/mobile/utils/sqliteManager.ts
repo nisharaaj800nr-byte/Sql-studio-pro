@@ -2,6 +2,8 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import {
   classifySQL,
+  extractCTEAliases,
+  extractTableAliases,
   formatSQLiteError,
   isDestructiveSQLText,
   splitSQLStatements,
@@ -49,6 +51,59 @@ export interface IndexInfo {
   partial: number;
 }
 
+// ─── All known PRAGMA names for autocomplete ─────────────────────────────────
+export const SQLITE_PRAGMAS: readonly string[] = [
+  'analysis_limit', 'application_id', 'auto_vacuum', 'automatic_index',
+  'busy_timeout', 'cache_size', 'cache_spill', 'case_sensitive_like',
+  'cell_size_check', 'checkpoint_fullfsync', 'collation_list',
+  'compile_options', 'count_changes', 'data_store_directory',
+  'data_version', 'database_list', 'defer_foreign_keys', 'empty_result_callbacks',
+  'encoding', 'foreign_key_check', 'foreign_key_list', 'foreign_keys',
+  'freelist_count', 'full_column_names', 'fullfsync', 'function_list',
+  'hard_heap_limit', 'ignore_check_constraints', 'incremental_vacuum',
+  'index_info', 'index_list', 'index_xinfo', 'integrity_check',
+  'journal_mode', 'journal_size_limit', 'legacy_alter_table',
+  'legacy_file_format', 'locking_mode', 'max_page_count', 'mmap_size',
+  'module_list', 'optimize', 'page_count', 'page_size', 'pragma_list',
+  'query_only', 'quick_check', 'read_uncommitted', 'recursive_triggers',
+  'reverse_unordered_selects', 'schema_version', 'secure_delete',
+  'short_column_names', 'shrink_memory', 'soft_heap_limit', 'stats',
+  'synchronous', 'table_info', 'table_list', 'table_xinfo', 'temp_store',
+  'temp_store_directory', 'threads', 'trusted_schema', 'user_version',
+  'wal_autocheckpoint', 'wal_checkpoint', 'writable_schema',
+];
+
+// ─── All SQLite 3 built-in functions for autocomplete ────────────────────────
+export const SQLITE_FUNCTIONS: readonly string[] = [
+  // Aggregate
+  'count', 'sum', 'avg', 'min', 'max', 'total', 'group_concat',
+  // Core scalar
+  'abs', 'char', 'coalesce', 'glob', 'hex', 'ifnull', 'iif', 'instr',
+  'last_insert_rowid', 'length', 'like', 'likelihood', 'likely', 'lower', 'ltrim',
+  'nullif', 'octet_length', 'printf', 'format', 'quote', 'random', 'randomblob',
+  'replace', 'round', 'rtrim', 'sign', 'soundex', 'sqlite_compileoption_get',
+  'sqlite_compileoption_used', 'sqlite_offset', 'sqlite_source_id', 'sqlite_version',
+  'substr', 'substring', 'trim', 'typeof', 'unicode', 'unhex', 'unlikely', 'upper',
+  'zeroblob', 'changes', 'total_changes', 'codepoint',
+  // Math (SQLite 3.35+)
+  'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh',
+  'ceil', 'ceiling', 'cos', 'cosh', 'degrees', 'exp', 'floor',
+  'ln', 'log', 'log2', 'log10', 'mod', 'pi', 'pow', 'power',
+  'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc',
+  // Date / time
+  'date', 'time', 'datetime', 'julianday', 'strftime', 'unixepoch', 'timediff',
+  // Window
+  'row_number', 'rank', 'dense_rank', 'percent_rank', 'cume_dist', 'ntile',
+  'lag', 'lead', 'first_value', 'last_value', 'nth_value',
+  // JSON
+  'json', 'json_array', 'json_array_length', 'json_each', 'json_error_position',
+  'json_extract', 'json_insert', 'json_object', 'json_patch', 'json_pretty',
+  'json_quote', 'json_remove', 'json_replace', 'json_set', 'json_tree',
+  'json_type', 'json_valid',
+  // FTS
+  'bm25', 'highlight', 'snippet',
+];
+
 const dbCache: Record<string, SQLite.SQLiteDatabase> = {};
 
 /**
@@ -73,7 +128,7 @@ async function openDb(dbId: string): Promise<SQLite.SQLiteDatabase> {
   return dbCache[dbId];
 }
 
-// ─── Task 1.7: Corrupt DB detection ────────────────────────────────────────
+// ─── Corrupt DB detection ────────────────────────────────────────────────────
 
 /** Thrown when SQLite reports the database file is irrecoverably damaged. */
 export class DatabaseCorruptError extends Error {
@@ -109,15 +164,20 @@ function resultTypeForKind(
 }
 
 /**
- * Execute a SQL statement.
- * @param maxRows  When set, SELECT queries fetch at most maxRows+1 rows so we
- *                 can detect truncation without loading the full result set.
- *                 Ignored for DML/DDL.
+ * Execute one or more SQL statements against a local database.
+ *
+ * - Statements are split with a SQL-aware tokenizer (not a simple semicolon split).
+ * - Each statement is classified so the correct expo-sqlite API is used.
+ * - Read statements (SELECT, EXPLAIN, read PRAGMA) use getAllAsync.
+ * - Write statements (DML, DDL, write PRAGMA, maintenance) use runAsync.
+ * - DML with RETURNING is treated as a read statement.
+ * - maxRows: when set, SELECT/EXPLAIN queries fetch at most maxRows+1 rows so
+ *   truncation can be detected without loading the full result set into memory.
  */
 export async function executeQuery(
   dbId: string,
   sql: string,
-  maxRows?: number
+  maxRows?: number,
 ): Promise<QueryResult> {
   const start = Date.now();
   try {
@@ -125,9 +185,7 @@ export async function executeQuery(
     const statements = splitSQLStatements(sql);
     if (statements.length === 0) {
       return {
-        columns: [],
-        rows: [],
-        rowsAffected: 0,
+        columns: [], rows: [], rowsAffected: 0,
         executionTime: Date.now() - start,
         error: 'Enter a SQLite statement to run.',
         type: 'error',
@@ -146,18 +204,25 @@ export async function executeQuery(
       const kind = classifySQL(statement);
       statementKinds.push(kind);
       if (kind === 'ddl') invalidateCompletionCache(dbId);
+
       const returnsRows = statementReturnsRows(statement, kind);
-      const cap = maxRows && maxRows > 0 && (kind === 'select' || kind === 'explain') &&
-        !/\bLIMIT\b/i.test(statement) ? maxRows : undefined;
+      const isLimited = kind === 'select' || kind === 'explain';
+      const cap =
+        maxRows && maxRows > 0 && isLimited && !/\bLIMIT\b/i.test(statement)
+          ? maxRows
+          : undefined;
       const querySql = cap
         ? `${statement.trim().replace(/;$/, '')} LIMIT ${cap + 1}`
         : statement;
 
       if (returnsRows) {
         const allRows = await db.getAllAsync<Record<string, unknown>>(querySql);
-        truncated = truncated || (cap !== undefined && allRows.length > cap);
-        finalRows = cap !== undefined && allRows.length > cap ? allRows.slice(0, cap) : allRows;
-        finalColumns = finalRows.length > 0 ? Object.keys(finalRows[0]) : [];
+        const clipped = cap !== undefined && allRows.length > cap;
+        truncated = truncated || clipped;
+        finalRows = clipped ? allRows.slice(0, cap) : allRows;
+        finalColumns = finalRows.length > 0
+          ? Object.keys(finalRows[0])
+          : [];
       } else {
         const result = await db.runAsync(statement);
         rowsAffected += result.changes;
@@ -178,22 +243,22 @@ export async function executeQuery(
       truncated: truncated || undefined,
     };
   } catch (e) {
-    // Re-throw corruption errors so callers can offer targeted recovery.
     if (e instanceof DatabaseCorruptError) throw e;
     if (isCorruptionError(e)) throw new DatabaseCorruptError(dbId, e as Error);
+    const details = formatSQLiteError(e);
     return {
-      columns: [],
-      rows: [],
-      rowsAffected: 0,
+      columns: [], rows: [], rowsAffected: 0,
       executionTime: Date.now() - start,
-      error: formatSQLiteError(e).message,
-      errorTitle: formatSQLiteError(e).title,
-      errorHint: formatSQLiteError(e).hint,
+      error: details.message,
+      errorTitle: details.title,
+      errorHint: details.hint,
       type: 'error',
       statementCount: splitSQLStatements(sql).length,
     };
   }
 }
+
+// ─── Schema-aware autocomplete ────────────────────────────────────────────────
 
 export interface SQLCompletionItems {
   tables: string[];
@@ -201,35 +266,62 @@ export interface SQLCompletionItems {
   columns: string[];
   indexes: string[];
   triggers: string[];
+  /** PRAGMA names for the PRAGMA keyword context */
+  pragmas: string[];
+  /** Built-in function names */
+  functions: string[];
+  /** CTE aliases extracted from the current SQL */
+  cteAliases: string[];
+  /** Table aliases extracted from the current SQL */
+  tableAliases: string[];
 }
 
-const completionCache: Record<string, SQLCompletionItems> = {};
+const completionCache: Record<string, Omit<SQLCompletionItems, 'cteAliases' | 'tableAliases'>> = {};
 
-export async function getSQLCompletionItems(dbId: string): Promise<SQLCompletionItems> {
-  if (completionCache[dbId]) return completionCache[dbId];
-  const db = await openDb(dbId);
-  const objects = await db.getAllAsync<{ name: string; type: string }>(
-    `SELECT name, type FROM sqlite_master
-     WHERE type IN ('table', 'view', 'index', 'trigger')
-       AND name NOT LIKE 'sqlite_%'
-     ORDER BY name`,
-  );
-  const tables = objects.filter(item => item.type === 'table').map(item => item.name);
-  const views = objects.filter(item => item.type === 'view').map(item => item.name);
-  const indexes = objects.filter(item => item.type === 'index').map(item => item.name);
-  const triggers = objects.filter(item => item.type === 'trigger').map(item => item.name);
-  const columnSets = await Promise.all(
-    [...tables, ...views].map(async name => {
-      try {
-        return await db.getAllAsync<{ name: string }>(`PRAGMA table_info("${escapeIdentifier(name)}")`);
-      } catch {
-        return [];
-      }
-    }),
-  );
-  const columns = Array.from(new Set(columnSets.flat().map(item => item.name))).sort();
-  completionCache[dbId] = { tables, views, columns, indexes, triggers };
-  return completionCache[dbId];
+/**
+ * Fetch schema-aware completion items.
+ * @param dbId      The open database identifier.
+ * @param currentSql  Optional: the SQL currently in the editor, used to
+ *                    extract CTE aliases and table aliases for context-sensitive suggestions.
+ */
+export async function getSQLCompletionItems(
+  dbId: string,
+  currentSql?: string,
+): Promise<SQLCompletionItems> {
+  if (!completionCache[dbId]) {
+    const db = await openDb(dbId);
+    const objects = await db.getAllAsync<{ name: string; type: string }>(
+      `SELECT name, type FROM sqlite_master
+       WHERE type IN ('table', 'view', 'index', 'trigger')
+         AND name NOT LIKE 'sqlite_%'
+       ORDER BY name`,
+    );
+    const tables = objects.filter(item => item.type === 'table').map(item => item.name);
+    const views = objects.filter(item => item.type === 'view').map(item => item.name);
+    const indexes = objects.filter(item => item.type === 'index').map(item => item.name);
+    const triggers = objects.filter(item => item.type === 'trigger').map(item => item.name);
+    const columnSets = await Promise.all(
+      [...tables, ...views].map(async name => {
+        try {
+          return await db.getAllAsync<{ name: string }>(`PRAGMA table_info("${escapeIdentifier(name)}")`);
+        } catch {
+          return [];
+        }
+      }),
+    );
+    const columns = Array.from(new Set(columnSets.flat().map(item => item.name))).sort();
+    completionCache[dbId] = {
+      tables, views, columns, indexes, triggers,
+      pragmas: [...SQLITE_PRAGMAS],
+      functions: [...SQLITE_FUNCTIONS],
+    };
+  }
+
+  const cached = completionCache[dbId];
+  const cteAliases = currentSql ? extractCTEAliases(currentSql) : [];
+  const tableAliases = currentSql ? extractTableAliases(currentSql) : [];
+
+  return { ...cached, cteAliases, tableAliases };
 }
 
 function invalidateCompletionCache(dbId: string): void {
@@ -246,7 +338,7 @@ export async function getTables(dbId: string): Promise<TableInfo[]> {
     `SELECT name, type, sql FROM sqlite_master
      WHERE type IN ('table', 'view', 'index', 'trigger')
        AND name NOT LIKE 'sqlite_%'
-     ORDER BY type, name`
+     ORDER BY type, name`,
   );
 
   const result: TableInfo[] = [];
@@ -255,7 +347,7 @@ export async function getTables(dbId: string): Promise<TableInfo[]> {
     if (item.type === 'table') {
       try {
         const countResult = await db.getAllAsync<{ count: number }>(
-          `SELECT COUNT(*) as count FROM "${escapeIdentifier(item.name)}"`
+          `SELECT COUNT(*) as count FROM "${escapeIdentifier(item.name)}"`,
         );
         rowCount = countResult[0]?.count ?? 0;
       } catch {
@@ -281,15 +373,13 @@ export async function getTableData(
   dbId: string,
   tableName: string,
   limit = 100,
-  offset = 0
+  offset = 0,
 ): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
   const db = await openDb(dbId);
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM "${escapeIdentifier(tableName)}" LIMIT ${limit} OFFSET ${offset}`
+    `SELECT * FROM "${escapeIdentifier(tableName)}" LIMIT ${limit} OFFSET ${offset}`,
   );
-  if (rows.length > 0) {
-    return { columns: Object.keys(rows[0]), rows };
-  }
+  if (rows.length > 0) return { columns: Object.keys(rows[0]), rows };
   const colInfo = await getColumns(dbId, tableName);
   return { columns: colInfo.map(c => c.name), rows: [] };
 }
@@ -297,7 +387,9 @@ export async function getTableData(
 export async function getTableRowCount(dbId: string, tableName: string): Promise<number> {
   try {
     const db = await openDb(dbId);
-    const result = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${escapeIdentifier(tableName)}"`);
+    const result = await db.getAllAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM "${escapeIdentifier(tableName)}"`,
+    );
     return result[0]?.count ?? 0;
   } catch {
     return 0;
@@ -321,7 +413,9 @@ export async function closeDatabase(dbId: string): Promise<void> {
   invalidateCompletionCache(dbId);
 }
 
-export async function getDatabaseStats(dbId: string): Promise<{ pageSize: number; pageCount: number; sizeBytes: number }> {
+export async function getDatabaseStats(
+  dbId: string,
+): Promise<{ pageSize: number; pageCount: number; sizeBytes: number }> {
   try {
     const db = await openDb(dbId);
     const ps = await db.getAllAsync<{ page_size: number }>('PRAGMA page_size');
@@ -334,10 +428,65 @@ export async function getDatabaseStats(dbId: string): Promise<{ pageSize: number
   }
 }
 
+// ─── SQLite engine capabilities ──────────────────────────────────────────────
+
+export interface SQLiteCapabilities {
+  version: string;
+  compileOptions: string[];
+  supportsReturning: boolean;
+  supportsWindowFunctions: boolean;
+  supportsJsonFunctions: boolean;
+  supportsStrictTables: boolean;
+  supportsGeneratedColumns: boolean;
+  supportsMathFunctions: boolean;
+}
+
 /**
- * Rows fetched per DB round-trip during exports.
- * Keeps peak JS heap usage bounded on large tables.
+ * Reports the capabilities of the SQLite engine actually running on this
+ * device. SQLite features vary by OS/runtime build, so UI should use this
+ * rather than claiming every optional extension is always available.
  */
+export async function getSQLiteCapabilities(dbId: string): Promise<SQLiteCapabilities> {
+  const db = await openDb(dbId);
+  const versionRows = await db.getAllAsync<{ version: string }>('SELECT sqlite_version() AS version');
+  let compileOptions: string[] = [];
+  try {
+    const rows = await db.getAllAsync<{ compile_options: string }>('PRAGMA compile_options');
+    compileOptions = rows.map(row => row.compile_options);
+  } catch {
+    // Some SQLite builds omit compile_options; the core version remains useful.
+  }
+  const version = versionRows[0]?.version ?? 'unknown';
+  const parts = version.split('.').map(p => Number(p) || 0);
+  const atLeast = (major: number, minor: number, patch: number) =>
+    parts[0] > major ||
+    (parts[0] === major && (parts[1] > minor || (parts[1] === minor && parts[2] >= patch)));
+
+  return {
+    version,
+    compileOptions,
+    supportsReturning: atLeast(3, 35, 0),
+    supportsWindowFunctions: atLeast(3, 25, 0),
+    supportsJsonFunctions: !compileOptions.some(o => o === 'OMIT_JSON'),
+    supportsStrictTables: atLeast(3, 37, 0),
+    supportsGeneratedColumns: atLeast(3, 31, 0),
+    supportsMathFunctions: atLeast(3, 35, 0),
+  };
+}
+
+/** Convenience shortcut to just get the SQLite version string. */
+export async function getSQLiteVersion(dbId: string): Promise<string> {
+  try {
+    const db = await openDb(dbId);
+    const rows = await db.getAllAsync<{ version: string }>('SELECT sqlite_version() AS version');
+    return rows[0]?.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// ─── Chunked export ───────────────────────────────────────────────────────────
+
 const EXPORT_CHUNK_SIZE = 500;
 
 export async function exportTableToCSV(dbId: string, tableName: string): Promise<string> {
@@ -355,24 +504,19 @@ export async function exportTableToCSV(dbId: string, tableName: string): Promise
   const chunks: string[] = [];
   let offset = 0;
 
-  // Fetch rows in chunks so we never hold the full table in memory at once
   while (true) {
     const rows = await db.getAllAsync<Record<string, unknown>>(
-      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
+      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`,
     );
     if (rows.length === 0) break;
-
     if (!headers) {
       headers = Object.keys(rows[0]);
       chunks.push(headers.join(','));
     }
-    for (const row of rows) {
-      chunks.push(headers.map(h => csvEscape(row[h])).join(','));
-    }
+    for (const row of rows) chunks.push(headers.map(h => csvEscape(row[h])).join(','));
     offset += rows.length;
     if (rows.length < EXPORT_CHUNK_SIZE) break;
   }
-
   return chunks.join('\n');
 }
 
@@ -384,13 +528,11 @@ export async function exportTableToJSON(dbId: string, tableName: string): Promis
   let offset = 0;
   let firstRow = true;
 
-  // Stream JSON array row-by-row in chunks to avoid one giant array in memory
   while (true) {
     const rows = await db.getAllAsync<Record<string, unknown>>(
-      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
+      `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`,
     );
     if (rows.length === 0) break;
-
     for (const row of rows) {
       parts.push(`${firstRow ? '' : ',\n'}  ${JSON.stringify(row)}`);
       firstRow = false;
@@ -402,6 +544,58 @@ export async function exportTableToJSON(dbId: string, tableName: string): Promis
   parts.push('\n]');
   return parts.join('');
 }
+
+export async function exportDatabaseToSQL(dbId: string): Promise<string> {
+  const db = await openDb(dbId);
+  const tables = await db.getAllAsync<{ name: string; type: string; sql: string }>(
+    `SELECT name, type, sql FROM sqlite_master
+     WHERE type IN ('table','view','index','trigger')
+       AND name NOT LIKE 'sqlite_%'`,
+  );
+
+  const parts: string[] = [
+    '-- SQL Studio Pro Export\n',
+    `-- Generated: ${new Date().toISOString()}\n\n`,
+    'PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n\n',
+  ];
+
+  const sqlVal = (v: unknown) =>
+    v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
+
+  for (const t of tables) {
+    if (t.sql) parts.push(`${t.sql};\n\n`);
+    if (t.type === 'table') {
+      try {
+        const escaped = escapeIdentifier(t.name);
+        let offset = 0;
+        let cols: string[] | null = null;
+
+        while (true) {
+          const rows = await db.getAllAsync<Record<string, unknown>>(
+            `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`,
+          );
+          if (rows.length === 0) break;
+          if (!cols) {
+            cols = Object.keys(rows[0]).map(c => `"${escapeIdentifier(c)}"`);
+          }
+          const colStr = cols.join(', ');
+          for (const row of rows) {
+            const vals = Object.values(row).map(sqlVal).join(', ');
+            parts.push(`INSERT INTO "${escaped}" (${colStr}) VALUES (${vals});\n`);
+          }
+          offset += rows.length;
+          if (rows.length < EXPORT_CHUNK_SIZE) break;
+        }
+        parts.push('\n');
+      } catch { /* skip unreadable tables */ }
+    }
+  }
+
+  parts.push('COMMIT;\nPRAGMA foreign_keys=ON;\n');
+  return parts.join('');
+}
+
+// ─── Integrity checks ─────────────────────────────────────────────────────────
 
 export async function checkIntegrity(dbId: string): Promise<{ ok: boolean; issues: string[] }> {
   try {
@@ -419,7 +613,9 @@ export async function getForeignKeyCheck(dbId: string): Promise<{ ok: boolean; i
     const db = await openDb(dbId);
     const rows = await db.getAllAsync<Record<string, unknown>>('PRAGMA foreign_key_check');
     if (rows.length === 0) return { ok: true, issues: [] };
-    const issues = rows.map(r => `Table "${r['table']}" row ${r['rowid']}: FK violation → "${r['parent']}"`);
+    const issues = rows.map(r =>
+      `Table "${r['table']}" row ${r['rowid']}: FK violation → "${r['parent']}"`,
+    );
     return { ok: false, issues };
   } catch (e) {
     return { ok: false, issues: [(e as Error).message] };
@@ -435,7 +631,7 @@ export interface TableStats {
 export async function getAllTableStats(dbId: string): Promise<TableStats[]> {
   const db = await openDb(dbId);
   const tables = await db.getAllAsync<{ name: string }>(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+    `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
   );
   const ps = await db.getAllAsync<{ page_size: number }>('PRAGMA page_size');
   const pageSize = ps[0]?.page_size ?? 4096;
@@ -443,7 +639,9 @@ export async function getAllTableStats(dbId: string): Promise<TableStats[]> {
   const stats: TableStats[] = [];
   for (const t of tables) {
     try {
-      const countRes = await db.getAllAsync<{ count: number }>(`SELECT COUNT(*) as count FROM "${escapeIdentifier(t.name)}"`);
+      const countRes = await db.getAllAsync<{ count: number }>(
+        `SELECT COUNT(*) as count FROM "${escapeIdentifier(t.name)}"`,
+      );
       const rowCount = countRes[0]?.count ?? 0;
       stats.push({ name: t.name, rowCount, sizeEstimateBytes: rowCount * pageSize * 0.1 });
     } catch {
@@ -466,12 +664,6 @@ export function getDatabaseFilename(dbId: string): string {
   return `sqlstudio_${dbId}.db`;
 }
 
-/**
- * Returns true when the physical SQLite file exists on disk.
- * Use this to detect databases that were registered in AsyncStorage
- * but whose files were deleted or never created (e.g. after a reinstall
- * of app data without clearing AsyncStorage).
- */
 export async function dbFileExists(dbId: string): Promise<boolean> {
   try {
     const dir = (FileSystem as any).documentDirectory ?? '';
@@ -483,12 +675,8 @@ export async function dbFileExists(dbId: string): Promise<boolean> {
   }
 }
 
-/**
- * Close the in-memory connection and delete the physical .db file.
- * Called by DatabaseContext.deleteDatabase so the file doesn't linger.
- */
 export async function deleteDbFile(dbId: string): Promise<void> {
-  await closeDatabase(dbId); // flush cache first
+  await closeDatabase(dbId);
   try {
     const dir = (FileSystem as any).documentDirectory ?? '';
     const path = `${dir}SQLite/sqlstudio_${dbId}.db`;
@@ -499,24 +687,22 @@ export async function deleteDbFile(dbId: string): Promise<void> {
   }
 }
 
-// ─── Task 2.8: Row CRUD ──────────────────────────────────────────────────────
+// ─── Row CRUD ─────────────────────────────────────────────────────────────────
 
-/** Insert a new row. values is a column→value map. */
 export async function insertRow(
   dbId: string,
   tableName: string,
-  values: Record<string, unknown>
+  values: Record<string, unknown>,
 ): Promise<QueryResult> {
   const cols = Object.keys(values).map(c => `"${escapeIdentifier(c)}"`).join(', ');
   const placeholders = Object.keys(values).map(() => '?').join(', ');
-  // Cast to any to satisfy expo-sqlite's strict SQLiteBindParams type
   const params = Object.values(values) as any;
   const start = Date.now();
   try {
     const db = await openDb(dbId);
     const r = await db.runAsync(
       `INSERT INTO "${escapeIdentifier(tableName)}" (${cols}) VALUES (${placeholders})`,
-      params
+      params,
     );
     return { columns: [], rows: [], rowsAffected: r.changes, insertId: r.lastInsertRowId ?? undefined, executionTime: Date.now() - start, type: 'dml' };
   } catch (e) {
@@ -524,13 +710,12 @@ export async function insertRow(
   }
 }
 
-/** Update a row identified by primary key. values is a column→value map. */
 export async function updateRow(
   dbId: string,
   tableName: string,
   pkCol: string,
   pkVal: unknown,
-  values: Record<string, unknown>
+  values: Record<string, unknown>,
 ): Promise<QueryResult> {
   const setClauses = Object.keys(values).map(c => `"${escapeIdentifier(c)}" = ?`).join(', ');
   const params = [...Object.values(values), pkVal] as any;
@@ -539,7 +724,7 @@ export async function updateRow(
     const db = await openDb(dbId);
     const r = await db.runAsync(
       `UPDATE "${escapeIdentifier(tableName)}" SET ${setClauses} WHERE "${escapeIdentifier(pkCol)}" = ?`,
-      params
+      params,
     );
     return { columns: [], rows: [], rowsAffected: r.changes, executionTime: Date.now() - start, type: 'dml' };
   } catch (e) {
@@ -547,19 +732,18 @@ export async function updateRow(
   }
 }
 
-/** Delete a row by primary key value. */
 export async function deleteRow(
   dbId: string,
   tableName: string,
   pkCol: string,
-  pkVal: unknown
+  pkVal: unknown,
 ): Promise<QueryResult> {
   const start = Date.now();
   try {
     const db = await openDb(dbId);
     const r = await db.runAsync(
       `DELETE FROM "${escapeIdentifier(tableName)}" WHERE "${escapeIdentifier(pkCol)}" = ?`,
-      [pkVal] as any
+      [pkVal] as any,
     );
     return { columns: [], rows: [], rowsAffected: r.changes, executionTime: Date.now() - start, type: 'dml' };
   } catch (e) {
@@ -567,13 +751,12 @@ export async function deleteRow(
   }
 }
 
-// ─── Task 2.10: CSV import ───────────────────────────────────────────────────
+// ─── CSV / SQL import ─────────────────────────────────────────────────────────
 
-/** Parse a CSV string and insert rows into an existing table. */
 export async function importCSVToTable(
   dbId: string,
   tableName: string,
-  csv: string
+  csv: string,
 ): Promise<{ imported: number; errors: string[] }> {
   const lines = csv.split('\n').filter(l => l.trim().length > 0);
   if (lines.length < 2) return { imported: 0, errors: ['CSV must have a header row and at least one data row.'] };
@@ -589,9 +772,7 @@ export async function importCSVToTable(
         else inQuotes = !inQuotes;
       } else if (ch === ',' && !inQuotes) {
         result.push(cur); cur = '';
-      } else {
-        cur += ch;
-      }
+      } else { cur += ch; }
     }
     result.push(cur);
     return result;
@@ -618,7 +799,6 @@ export async function importCSVToTable(
   return { imported, errors };
 }
 
-/** Execute raw SQL statements (for SQL file import). */
 export async function importSQLFile(dbId: string, sql: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const result = await executeQuery(dbId, sql);
@@ -629,62 +809,18 @@ export async function importSQLFile(dbId: string, sql: string): Promise<{ ok: bo
   }
 }
 
-export interface SQLiteCapabilities {
-  version: string;
-  compileOptions: string[];
-  supportsReturning: boolean;
-  supportsWindowFunctions: boolean;
-  supportsJsonFunctions: boolean;
-  supportsStrictTables: boolean;
-}
-
-/**
- * Reports the capabilities of the SQLite engine actually running on this
- * device. SQLite features vary by OS/runtime build, so UI should use this
- * rather than claiming every optional extension is always available.
- */
-export async function getSQLiteCapabilities(dbId: string): Promise<SQLiteCapabilities> {
-  const db = await openDb(dbId);
-  const versionRows = await db.getAllAsync<{ version: string }>('SELECT sqlite_version() AS version');
-  let compileOptions: string[] = [];
-  try {
-    const rows = await db.getAllAsync<{ compile_options: string }>('PRAGMA compile_options');
-    compileOptions = rows.map(row => row.compile_options);
-  } catch {
-    // Some SQLite builds omit compile_options; the core version remains useful.
-  }
-  const version = versionRows[0]?.version ?? 'unknown';
-  const numericVersion = version.split('.').map(part => Number(part) || 0);
-  const atLeast = (major: number, minor: number, patch: number) =>
-    numericVersion[0] > major ||
-    (numericVersion[0] === major && (
-      numericVersion[1] > minor ||
-      (numericVersion[1] === minor && numericVersion[2] >= patch)
-    ));
-
-  return {
-    version,
-    compileOptions,
-    supportsReturning: atLeast(3, 35, 0),
-    supportsWindowFunctions: atLeast(3, 25, 0),
-    supportsJsonFunctions: !compileOptions.some(option => option === 'OMIT_JSON'),
-    supportsStrictTables: atLeast(3, 37, 0),
-  };
-}
-
-// ─── Task 2.14/2.16: Schema + Foreign Keys ──────────────────────────────────
+// ─── Schema / ER diagram ─────────────────────────────────────────────────────
 
 export interface ForeignKeyInfo {
   id: number;
   seq: number;
-  table: string;   // referenced table
-  from: string;    // column in this table
-  to: string;      // column in referenced table
+  table: string;
+  from: string;
+  to: string;
   on_update: string;
   on_delete: string;
 }
 
-/** Get foreign keys declared on a table. */
 export async function getForeignKeys(dbId: string, tableName: string): Promise<ForeignKeyInfo[]> {
   try {
     const db = await openDb(dbId);
@@ -694,7 +830,6 @@ export async function getForeignKeys(dbId: string, tableName: string): Promise<F
   }
 }
 
-/** Get the full schema (tables, columns, FKs) for building an ER diagram. */
 export interface ERTable {
   name: string;
   sql: string;
@@ -705,7 +840,7 @@ export interface ERTable {
 export async function getERSchema(dbId: string): Promise<ERTable[]> {
   const db = await openDb(dbId);
   const tables = await db.getAllAsync<{ name: string; sql: string }>(
-    `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+    `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
   );
   const result: ERTable[] = [];
   for (const t of tables) {
@@ -718,10 +853,10 @@ export async function getERSchema(dbId: string): Promise<ERTable[]> {
   return result;
 }
 
-// ─── Task 2.18: Transaction helpers ──────────────────────────────────────────
+// ─── Transaction helpers ──────────────────────────────────────────────────────
 
-export async function beginTransaction(dbId: string): Promise<QueryResult> {
-  return executeQuery(dbId, 'BEGIN');
+export async function beginTransaction(dbId: string, mode: 'DEFERRED' | 'IMMEDIATE' | 'EXCLUSIVE' = 'DEFERRED'): Promise<QueryResult> {
+  return executeQuery(dbId, `BEGIN ${mode}`);
 }
 
 export async function commitTransaction(dbId: string): Promise<QueryResult> {
@@ -732,7 +867,35 @@ export async function rollbackTransaction(dbId: string): Promise<QueryResult> {
   return executeQuery(dbId, 'ROLLBACK');
 }
 
-// ─── Task 2.19: EXPLAIN QUERY PLAN ──────────────────────────────────────────
+// ─── SAVEPOINT helpers ────────────────────────────────────────────────────────
+
+/**
+ * Create a savepoint. Name must be a valid SQL identifier.
+ * Usage: SAVEPOINT sp1 → RELEASE sp1 (commit) or ROLLBACK TO sp1 (undo).
+ */
+export async function savepointBegin(dbId: string, name: string): Promise<QueryResult> {
+  // Validate: name should be a simple identifier
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    return {
+      columns: [], rows: [], rowsAffected: 0, executionTime: 0,
+      error: `Invalid savepoint name: "${name}". Use letters, digits, and underscores only.`,
+      type: 'error',
+    };
+  }
+  return executeQuery(dbId, `SAVEPOINT "${escapeIdentifier(name)}"`);
+}
+
+/** Commit all changes made since the savepoint was established. */
+export async function savepointRelease(dbId: string, name: string): Promise<QueryResult> {
+  return executeQuery(dbId, `RELEASE SAVEPOINT "${escapeIdentifier(name)}"`);
+}
+
+/** Roll back changes to the state at the savepoint (savepoint itself remains active). */
+export async function savepointRollback(dbId: string, name: string): Promise<QueryResult> {
+  return executeQuery(dbId, `ROLLBACK TO SAVEPOINT "${escapeIdentifier(name)}"`);
+}
+
+// ─── EXPLAIN QUERY PLAN ───────────────────────────────────────────────────────
 
 export interface ExplainRow {
   id: number;
@@ -750,62 +913,8 @@ export async function explainQueryPlan(dbId: string, sql: string): Promise<Expla
   }
 }
 
-// ─── Task 2.20: Detect destructive SQL ──────────────────────────────────────
+// ─── Destructive SQL detection ────────────────────────────────────────────────
 
-/**
- * Returns true when the SQL contains a destructive statement that warrants
- * an automatic backup before execution.
- */
 export function isDestructiveSQL(sql: string): boolean {
   return isDestructiveSQLText(sql);
-}
-
-export async function exportDatabaseToSQL(dbId: string): Promise<string> {
-  const db = await openDb(dbId);
-  const tables = await db.getAllAsync<{ name: string; type: string; sql: string }>(
-    `SELECT name, type, sql FROM sqlite_master WHERE type IN ('table','view','index','trigger') AND name NOT LIKE 'sqlite_%'`
-  );
-
-  const parts: string[] = [
-    '-- SQL Studio Pro Export\n',
-    `-- Generated: ${new Date().toISOString()}\n\n`,
-    'PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n\n',
-  ];
-
-  const sqlVal = (v: unknown) =>
-    v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
-
-  for (const t of tables) {
-    if (t.sql) parts.push(`${t.sql};\n\n`);
-    if (t.type === 'table') {
-      try {
-        const escaped = escapeIdentifier(t.name);
-        let offset = 0;
-        let cols: string[] | null = null;
-
-        // Fetch rows in chunks — prevents holding the entire table in memory
-        while (true) {
-          const rows = await db.getAllAsync<Record<string, unknown>>(
-            `SELECT * FROM "${escaped}" LIMIT ${EXPORT_CHUNK_SIZE} OFFSET ${offset}`
-          );
-          if (rows.length === 0) break;
-
-          if (!cols) {
-            cols = Object.keys(rows[0]).map(c => `"${escapeIdentifier(c)}"`);
-          }
-          const colStr = cols.join(', ');
-          for (const row of rows) {
-            const vals = Object.values(row).map(sqlVal).join(', ');
-            parts.push(`INSERT INTO "${escaped}" (${colStr}) VALUES (${vals});\n`);
-          }
-          offset += rows.length;
-          if (rows.length < EXPORT_CHUNK_SIZE) break;
-        }
-        parts.push('\n');
-      } catch { /* skip corrupt / unreadable tables */ }
-    }
-  }
-
-  parts.push('COMMIT;\nPRAGMA foreign_keys=ON;\n');
-  return parts.join('');
 }
