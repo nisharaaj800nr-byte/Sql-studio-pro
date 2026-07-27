@@ -58,15 +58,17 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView>
             <KeyboardProvider>
-              <SettingsProvider>
-                <DatabaseProvider>
-                  <EditorProvider>
-                    <CodeProvider>
-                      <RootLayoutNav />
-                    </CodeProvider>
-                  </EditorProvider>
-                </DatabaseProvider>
-              </SettingsProvider>
+              <ThemeProvider>
+                <SettingsProvider>
+                  <DatabaseProvider>
+                    <EditorProvider>
+                      <CodeProvider>
+                        <RootLayoutNav />
+                      </CodeProvider>
+                    </EditorProvider>
+                  </DatabaseProvider>
+                </SettingsProvider>
+              </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
