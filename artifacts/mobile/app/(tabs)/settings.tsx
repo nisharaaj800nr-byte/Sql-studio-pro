@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Platform,
   Pressable,
@@ -10,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { PickerModal, ConfirmModal } from '@/components/PickerModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -415,6 +415,16 @@ const ROW_LIMITS   = [50, 100, 200, 500];
 const TIMEOUT_OPTS = [10, 15, 30, 60, 120];
 const EXPORT_FMTS  = ['csv', 'json', 'sql'] as const;
 
+// Picker state shape
+interface ActivePicker {
+  title: string;
+  subtitle?: string;
+  options: { label: string; value: any }[];
+  current: any;
+  setter: (v: any) => void;
+  danger?: boolean;
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { queryHistory, savedQueries, clearHistory } = useEditor();
@@ -422,6 +432,12 @@ export default function SettingsScreen() {
   const { settings, updateSetting, resetSettings } = useSettings();
   const { themeMode, setThemeMode } = useTheme();
   const [sqliteCaps, setSqliteCaps] = useState<SQLiteCapabilities | null>(null);
+
+  // Modal state
+  const [activePicker, setActivePicker] = useState<ActivePicker | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showEngineInfo, setShowEngineInfo] = useState(false);
 
   const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 84 : 64;
 
@@ -438,69 +454,14 @@ export default function SettingsScreen() {
     current: any,
     options: { label: string; value: any }[],
     setter: (v: any) => void,
+    subtitle?: string,
   ) => {
-    Alert.alert(title, `Current: ${current}`, [
-      ...options.map(o => ({
-        text: `${o.label}${o.value === current ? '  ✓' : ''}`,
-        onPress: () => {
-          setter(o.value);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        },
-      })),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setActivePicker({ title, subtitle, options, current, setter });
   };
 
-  const handleClearHistory = () => {
-    Alert.alert(
-      'Clear History',
-      `Delete all ${queryHistory.length} history entries? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: () => {
-            clearHistory();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
-        },
-      ],
-    );
-  };
-
-  const handleResetSettings = () => {
-    Alert.alert('Reset Settings', 'Restore all settings to defaults?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: () => {
-          resetSettings();
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        },
-      },
-    ]);
-  };
-
-  const handleEngineDetails = () => {
-    if (!sqliteCaps) return;
-    const features = [
-      sqliteCaps.supportsWindowFunctions && 'Window functions',
-      sqliteCaps.supportsJsonFunctions && 'JSON functions',
-      sqliteCaps.supportsMathFunctions && 'Math functions',
-      sqliteCaps.supportsReturning && 'RETURNING clause',
-      sqliteCaps.supportsGeneratedColumns && 'Generated columns',
-      sqliteCaps.supportsStrictTables && 'STRICT tables',
-    ]
-      .filter(Boolean)
-      .join('\n');
-    Alert.alert(
-      `SQLite ${sqliteCaps.version}`,
-      `Supported features:\n\n${features || 'Basic SQLite only'}`,
-      [{ text: 'OK' }],
-    );
-  };
+  const handleClearHistory = () => setShowClearConfirm(true);
+  const handleResetSettings = () => setShowResetConfirm(true);
+  const handleEngineDetails = () => setShowEngineInfo(true);
 
   // ── render ─────────────────────────────────────────────────────────────────
 
@@ -778,13 +739,70 @@ export default function SettingsScreen() {
           {/* ── FOOTER ────────────────────────────────────────────── */}
           <Text style={[styles.footer, { color: colors.mutedForeground }]}>
             SQL Studio Pro · Powerful SQLite IDE for mobile{'\n'}
-
-            Copyright © 2023 SQL Studio Pro. All rights reserved.{'\n'}
-            Made with ❤️ in india by {'Mukesh choudhary'}{'\n'}
-            
+            Copyright © 2024 SQL Studio Pro. All rights reserved.{'\n'}
+            Made with ❤️ in India by Mukesh Choudhary
           </Text>
         </View>
       </ScrollView>
+
+      {/* ── IN-APP PICKER MODAL ───────────────────────────────── */}
+      {activePicker && (
+        <PickerModal
+          visible={!!activePicker}
+          title={activePicker.title}
+          subtitle={activePicker.subtitle}
+          options={activePicker.options}
+          current={activePicker.current}
+          onSelect={v => {
+            activePicker.setter(v);
+            setActivePicker(null);
+          }}
+          onClose={() => setActivePicker(null)}
+          danger={activePicker.danger}
+        />
+      )}
+
+      {/* ── CLEAR HISTORY CONFIRM ─────────────────────────────── */}
+      <ConfirmModal
+        visible={showClearConfirm}
+        title="Clear Query History"
+        message={`Delete all ${queryHistory.length} history entries? This cannot be undone.`}
+        confirmLabel="Clear All"
+        danger
+        onConfirm={() => clearHistory()}
+        onClose={() => setShowClearConfirm(false)}
+      />
+
+      {/* ── RESET SETTINGS CONFIRM ────────────────────────────── */}
+      <ConfirmModal
+        visible={showResetConfirm}
+        title="Reset All Settings"
+        message="Restore all settings to defaults? Your databases and query history will not be affected."
+        confirmLabel="Reset"
+        danger
+        onConfirm={() => resetSettings()}
+        onClose={() => setShowResetConfirm(false)}
+      />
+
+      {/* ── SQLITE ENGINE INFO ────────────────────────────────── */}
+      {sqliteCaps && (
+        <PickerModal
+          visible={showEngineInfo}
+          title={`SQLite ${sqliteCaps.version}`}
+          subtitle="expo-sqlite · Device-local execution"
+          options={[
+            { label: 'Window Functions',   value: 'window',    desc: sqliteCaps.supportsWindowFunctions ? '✅ Supported' : '❌ Not supported' },
+            { label: 'JSON Functions',     value: 'json',      desc: sqliteCaps.supportsJsonFunctions ? '✅ Supported' : '❌ Not supported' },
+            { label: 'Math Functions',     value: 'math',      desc: sqliteCaps.supportsMathFunctions ? '✅ Supported' : '❌ Not supported' },
+            { label: 'RETURNING Clause',   value: 'returning', desc: sqliteCaps.supportsReturning ? '✅ Supported' : '❌ Not supported' },
+            { label: 'Generated Columns',  value: 'generated', desc: sqliteCaps.supportsGeneratedColumns ? '✅ Supported' : '❌ Not supported' },
+            { label: 'STRICT Tables',      value: 'strict',    desc: sqliteCaps.supportsStrictTables ? '✅ Supported' : '❌ Not supported' },
+          ]}
+          current={null}
+          onSelect={() => {}}
+          onClose={() => setShowEngineInfo(false)}
+        />
+      )}
     </View>
   );
 }
