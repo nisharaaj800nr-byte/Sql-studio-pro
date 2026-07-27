@@ -28,19 +28,6 @@ import {
   backupDatabase,
 } from '@/utils/exportUtils';
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const P = {
-  bg:         '#070B12',
-  card:       '#0F1623',
-  cardBorder: 'rgba(255,255,255,0.07)',
-  primary:    '#4F8DFF',
-  accent:     '#7C5CFF',
-  success:    '#22C55E',
-  warning:    '#F59E0B',
-  text:       '#F1F5F9',
-  textDim:    '#94A3B8',
-  textMuted:  '#475569',
-};
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 74;
 const { width: SW } = Dimensions.get('window');
@@ -368,7 +355,7 @@ export default function DatabasesScreen() {
       }
     });
 
-  const bg = isDark ? P.bg : colors.background;
+  const bg = colors.background;
   const busy = importing || scanning;
 
   return (
@@ -377,9 +364,9 @@ export default function DatabasesScreen() {
       {/* ── HEADER ─────────────────────────────────────────────────── */}
       <Animated.View style={[s.header, { paddingTop: insets.top + 14, opacity: fadeAnim }]}>
         <View style={s.headerText}>
-          <Text style={[s.eyebrow,  { color: isDark ? P.primary        : colors.primary }]}>LOCAL WORKSPACE</Text>
-          <Text style={[s.title,    { color: isDark ? P.text           : colors.foreground }]}>Databases</Text>
-          <Text style={[s.subtitle, { color: isDark ? P.textDim        : colors.mutedForeground }]}>
+          <Text style={[s.eyebrow,  { color: colors.primary }]}>LOCAL WORKSPACE</Text>
+          <Text style={[s.title,    { color: colors.foreground }]}>Databases</Text>
+          <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
             Manage your SQLite databases locally
           </Text>
         </View>
@@ -395,23 +382,23 @@ export default function DatabasesScreen() {
 
       {/* ── SEARCH BAR ─────────────────────────────────────────────── */}
       <Animated.View style={[s.searchWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <View style={[s.searchBar, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
-          <Ionicons name="search-outline" size={17} color={isDark ? P.textMuted : colors.mutedForeground} />
+        <View style={[s.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={17} color={colors.mutedForeground} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search databases..."
-            placeholderTextColor={isDark ? P.textMuted : colors.mutedForeground}
-            style={[s.searchInput, { color: isDark ? P.text : colors.foreground }]}
+            placeholderTextColor={colors.mutedForeground}
+            style={[s.searchInput, { color: colors.foreground }]}
             autoCorrect={false}
           />
           {search.length > 0 ? (
             <Pressable onPress={() => setSearch('')} hitSlop={10}>
-              <Ionicons name="close-circle" size={17} color={isDark ? P.textMuted : colors.mutedForeground} />
+              <Ionicons name="close-circle" size={17} color={colors.mutedForeground} />
             </Pressable>
           ) : (
             <Pressable onPress={handleSortPick} hitSlop={10}>
-              <Ionicons name="options-outline" size={18} color={isDark ? P.textDim : colors.mutedForeground} />
+              <Ionicons name="options-outline" size={18} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
@@ -426,9 +413,9 @@ export default function DatabasesScreen() {
 
           {/* Loading overlay for import/scan */}
           {busy && (
-            <View style={[s.busyCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
-              <ActivityIndicator color={isDark ? P.primary : colors.primary} />
-              <Text style={[s.busyText, { color: isDark ? P.textDim : colors.mutedForeground }]}>
+            <View style={[s.busyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[s.busyText, { color: colors.mutedForeground }]}>
                 {importing ? 'Importing database…' : 'Scanning for databases…'}
               </Text>
             </View>
@@ -510,8 +497,8 @@ function PremiumEmptyState({
 }: { onCreatePress: () => void; isDark: boolean; colors: any }) {
   return (
     <View style={[es.card, {
-      backgroundColor: isDark ? P.card : colors.card,
-      borderColor: isDark ? P.cardBorder : colors.border,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
     }]}>
       {/* 3-D DB illustration */}
       <View style={es.illustrationWrap}>
@@ -541,8 +528,8 @@ function PremiumEmptyState({
         <View style={[es.dot, { top: 20, left: 60, backgroundColor: '#C7D2FE', width: 3, height: 3 }]} />
       </View>
 
-      <Text style={[es.heading, { color: isDark ? P.text    : colors.foreground }]}>No databases yet</Text>
-      <Text style={[es.desc,    { color: isDark ? P.textDim : colors.mutedForeground }]}>
+      <Text style={[es.heading, { color: colors.foreground }]}>No databases yet</Text>
+      <Text style={[es.desc,    { color: colors.mutedForeground }]}>
         Create your first SQLite database{'\n'}to get started.
       </Text>
 
@@ -563,14 +550,14 @@ function PremiumEmptyState({
 function SearchEmptyState({ query, isDark, colors }: { query: string; isDark: boolean; colors: any }) {
   return (
     <View style={[se.card, {
-      backgroundColor: isDark ? P.card : colors.card,
-      borderColor: isDark ? P.cardBorder : colors.border,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
     }]}>
-      <View style={[se.icon, { backgroundColor: isDark ? '#4F8DFF18' : colors.primarySubtle }]}>
-        <Ionicons name="search-outline" size={26} color={isDark ? P.primary : colors.primary} />
+      <View style={[se.icon, { backgroundColor: colors.primarySubtle }]}>
+        <Ionicons name="search-outline" size={26} color={colors.primary} />
       </View>
-      <Text style={[se.title, { color: isDark ? P.text    : colors.foreground }]}>No matches</Text>
-      <Text style={[se.desc,  { color: isDark ? P.textDim : colors.mutedForeground }]}>
+      <Text style={[se.title, { color: colors.foreground }]}>No matches</Text>
+      <Text style={[se.desc,  { color: colors.mutedForeground }]}>
         No databases match "{query}"
       </Text>
     </View>
@@ -589,9 +576,9 @@ function QuickActionsSection({
   return (
     <View style={qa.wrap}>
       <View style={qa.header}>
-        <Text style={[qa.title, { color: isDark ? P.text : colors.foreground }]}>Quick Actions</Text>
+        <Text style={[qa.title, { color: colors.foreground }]}>Quick Actions</Text>
         <Pressable onPress={onViewAll} hitSlop={8}>
-          <Text style={[qa.viewAll, { color: isDark ? P.primary : colors.primary }]}>View All ›</Text>
+          <Text style={[qa.viewAll, { color: colors.primary }]}>View All ›</Text>
         </Pressable>
       </View>
       <View style={qa.grid}>
@@ -603,8 +590,8 @@ function QuickActionsSection({
             style={({ pressed }) => [
               qa.card,
               {
-                backgroundColor: isDark ? P.card : colors.card,
-                borderColor: isDark ? P.cardBorder : colors.border,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
                 opacity: busy ? 0.5 : pressed ? 0.82 : 1,
                 transform: [{ scale: pressed && !busy ? 0.95 : 1 }],
               },
@@ -613,8 +600,8 @@ function QuickActionsSection({
             <LinearGradient colors={a.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={qa.iconBox}>
               <Ionicons name={a.icon} size={22} color="#FFF" />
             </LinearGradient>
-            <Text style={[qa.label, { color: isDark ? P.text     : colors.foreground }]} numberOfLines={2}>{a.label}</Text>
-            <Text style={[qa.sub,   { color: isDark ? P.textMuted : colors.mutedForeground }]}>{a.sub}</Text>
+            <Text style={[qa.label, { color: colors.foreground }]} numberOfLines={2}>{a.label}</Text>
+            <Text style={[qa.sub,   { color: colors.mutedForeground }]}>{a.sub}</Text>
           </Pressable>
         ))}
       </View>
@@ -632,8 +619,8 @@ function SecurityCard({
       style={({ pressed }) => [
         sc.card,
         {
-          backgroundColor: isDark ? '#0D1829' : colors.card,
-          borderColor: isDark ? 'rgba(79,141,255,0.2)' : colors.border,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
           opacity: pressed ? 0.88 : 1,
         },
       ]}
@@ -642,12 +629,12 @@ function SecurityCard({
         <Ionicons name="shield-checkmark" size={20} color="#FFF" />
       </LinearGradient>
       <View style={sc.textWrap}>
-        <Text style={[sc.title, { color: isDark ? P.text    : colors.foreground }]}>Your data is safe</Text>
-        <Text style={[sc.desc,  { color: isDark ? P.textDim : colors.mutedForeground }]}>
+        <Text style={[sc.title, { color: colors.foreground }]}>Your data is safe</Text>
+        <Text style={[sc.desc,  { color: colors.mutedForeground }]}>
           All databases are stored locally on your device.{'\n'}We never access your data.
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={isDark ? P.textMuted : colors.mutedForeground} />
+      <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
 }

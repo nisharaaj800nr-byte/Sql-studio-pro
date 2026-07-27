@@ -23,20 +23,6 @@ import { formatNumber } from '@/utils/formatters';
 import { InputModal } from '@/components/InputModal';
 import { pickAndImportDatabase, copyImportedDb } from '@/utils/exportUtils';
 
-// ── Premium design tokens ───────────────────────────────────────────────────
-const P = {
-  bg:         '#070B12',
-  card:       '#111827',
-  cardBorder: 'rgba(255,255,255,0.07)',
-  primary:    '#4F8DFF',
-  accent:     '#7C5CFF',
-  success:    '#22C55E',
-  warning:    '#F59E0B',
-  error:      '#EF4444',
-  text:       '#F1F5F9',
-  textDim:    '#94A3B8',
-  textMuted:  '#64748B',
-};
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 78 : 64;
 const { width: SW } = Dimensions.get('window');
@@ -265,7 +251,7 @@ export default function DashboardScreen() {
   const actionsY = actionsAnim.interpolate({ inputRange: [0,1], outputRange: [32, 0] });
   const bottomY  = bottomAnim.interpolate({ inputRange: [0,1], outputRange: [36, 0] });
 
-  const bg = isDark ? P.bg : colors.background;
+  const bg = colors.background;
 
   return (
     <View style={[s.root, { backgroundColor: bg }]}>
@@ -282,20 +268,20 @@ export default function DashboardScreen() {
           <View style={s.headerLeft}>
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/settings'); }}
-              style={[s.menuBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.card }]}
+              style={[s.menuBtn, { backgroundColor: colors.muted }]}
               hitSlop={8}
             >
-              <Ionicons name="menu-outline" size={20} color={isDark ? P.text : colors.foreground} />
+              <Ionicons name="menu-outline" size={20} color={colors.foreground} />
             </Pressable>
             <View>
-              <Text style={[s.greeting, { color: isDark ? P.textDim : colors.mutedForeground }]}>
+              <Text style={[s.greeting, { color: colors.mutedForeground }]}>
                 {getGreeting()} 👋
               </Text>
               <View style={s.titleRow}>
-                <Text style={[s.titleAccent, { color: isDark ? P.primary : colors.primary }]}>SQL </Text>
-                <Text style={[s.titleMain,   { color: isDark ? P.text    : colors.foreground }]}>Studio Pro</Text>
+                <Text style={[s.titleAccent, { color: colors.primary }]}>SQL </Text>
+                <Text style={[s.titleMain,   { color: colors.foreground }]}>Studio Pro</Text>
               </View>
-              <Text style={[s.titleSub, { color: isDark ? P.textMuted : colors.mutedForeground }]}>
+              <Text style={[s.titleSub, { color: colors.mutedForeground }]}>
                 Local SQLite IDE
               </Text>
             </View>
@@ -320,10 +306,10 @@ export default function DashboardScreen() {
             {/* Search */}
             <Pressable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }}
-              style={[s.iconBtn, { backgroundColor: showSearch ? (isDark ? P.primary + '33' : colors.primarySubtle) : (isDark ? 'rgba(255,255,255,0.07)' : colors.card) }]}
+              style={[s.iconBtn, { backgroundColor: showSearch ? colors.primarySubtle : colors.muted }]}
               hitSlop={8}
             >
-              <Ionicons name={showSearch ? 'close' : 'search-outline'} size={17} color={showSearch ? P.primary : (isDark ? P.text : colors.foreground)} />
+              <Ionicons name={showSearch ? 'close' : 'search-outline'} size={17} color={showSearch ? colors.primary : colors.foreground} />
             </Pressable>
 
             {/* Avatar */}
@@ -336,20 +322,20 @@ export default function DashboardScreen() {
         {/* ── SEARCH BAR ─────────────────────────────────────────── */}
         {showSearch && (
           <Animated.View style={{ opacity: heroAnim, marginBottom: 14 }}>
-            <View style={[s.searchBar, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
-              <Ionicons name="search-outline" size={16} color={isDark ? P.textMuted : colors.mutedForeground} />
+            <View style={[s.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="search-outline" size={16} color={colors.mutedForeground} />
               <TextInput
                 autoFocus
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search databases..."
-                placeholderTextColor={isDark ? P.textMuted : colors.mutedForeground}
-                style={[s.searchInput, { color: isDark ? P.text : colors.foreground }]}
+                placeholderTextColor={colors.mutedForeground}
+                style={[s.searchInput, { color: colors.foreground }]}
                 autoCorrect={false}
               />
               {searchQuery.length > 0 && (
                 <Pressable onPress={() => setSearchQuery('')} hitSlop={10}>
-                  <Ionicons name="close-circle" size={16} color={isDark ? P.textMuted : colors.mutedForeground} />
+                  <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
                 </Pressable>
               )}
             </View>
@@ -416,19 +402,19 @@ export default function DashboardScreen() {
         {/* ── STATS ROW ──────────────────────────────────────────── */}
         <Animated.View style={[s.statsRow, { opacity: statsAnim, transform: [{ translateY: statsY }] }]}>
           {([
-            { label: 'Databases', value: databases.length, sub: 'Active',    icon: 'server-outline',   color: P.primary,  glow: '#4F8DFF' },
-            { label: 'Tables',    value: totalTables,      sub: 'Total',     icon: 'grid-outline',     color: P.success,  glow: '#22C55E' },
-            { label: 'Queries',   value: formatNumber(totalQueriesRun), sub: 'Executed', icon: 'flash-outline', color: P.accent, glow: '#7C5CFF' },
-            { label: 'Saved',     value: savedQueries.length, sub: 'Queries', icon: 'bookmark-outline', color: P.warning, glow: '#F59E0B' },
+            { label: 'Databases', value: databases.length, sub: 'Active',    icon: 'server-outline',   color: colors.primary, glow: '#4F8DFF' },
+            { label: 'Tables',    value: totalTables,      sub: 'Total',     icon: 'grid-outline',     color: colors.accent,  glow: '#22C55E' },
+            { label: 'Queries',   value: formatNumber(totalQueriesRun), sub: 'Executed', icon: 'flash-outline', color: colors.tint, glow: '#7C5CFF' },
+            { label: 'Saved',     value: savedQueries.length, sub: 'Queries', icon: 'bookmark-outline', color: colors.warning, glow: '#F59E0B' },
           ] as const).map((st) => (
             <View
               key={st.label}
-              style={[s.statCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}
+              style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
               <View style={[s.statIconBox, { backgroundColor: st.glow + '22' }]}>
                 <Ionicons name={st.icon as any} size={13} color={st.color} />
               </View>
-              <Text style={[s.statVal, { color: isDark ? P.text : colors.foreground }]}>{st.value}</Text>
+              <Text style={[s.statVal, { color: colors.foreground }]}>{st.value}</Text>
               <Text style={[s.statSub, { color: st.color }]}>{st.sub}</Text>
             </View>
           ))}
@@ -439,8 +425,8 @@ export default function DashboardScreen() {
           <SectionHeader
             title="Quick Actions"
             isDark={isDark}
-            primaryColor={isDark ? P.primary : colors.primary}
-            textColor={isDark ? P.text : colors.foreground}
+            primaryColor={colors.primary}
+            textColor={colors.foreground}
             onSeeAll={() => router.push('/(tabs)/databases')}
           />
           <View style={s.actionsGrid}>
@@ -452,8 +438,8 @@ export default function DashboardScreen() {
                 style={({ pressed }) => [
                   s.actionCard,
                   {
-                    backgroundColor: isDark ? P.card : colors.card,
-                    borderColor: isDark ? P.cardBorder : colors.border,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
                     opacity: (importing && a.key === 'import-db') ? 0.5 : pressed ? 0.82 : 1,
                     transform: [{ scale: pressed ? 0.95 : 1 }],
                   },
@@ -462,8 +448,8 @@ export default function DashboardScreen() {
                 <LinearGradient colors={a.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.actionIcon}>
                   <Ionicons name={a.icon} size={20} color="#FFF" />
                 </LinearGradient>
-                <Text style={[s.actionLabel, { color: isDark ? P.text    : colors.foreground }]}>{a.label}</Text>
-                <Text style={[s.actionSub,   { color: isDark ? P.textMuted : colors.mutedForeground }]}>{a.sub}</Text>
+                <Text style={[s.actionLabel, { color: colors.foreground }]}>{a.label}</Text>
+                <Text style={[s.actionSub,   { color: colors.mutedForeground }]}>{a.sub}</Text>
               </Pressable>
             ))}
           </View>
@@ -474,13 +460,13 @@ export default function DashboardScreen() {
           <SectionHeader
             title="Recent Databases"
             isDark={isDark}
-            primaryColor={isDark ? P.primary : colors.primary}
-            textColor={isDark ? P.text : colors.foreground}
+            primaryColor={colors.primary}
+            textColor={colors.foreground}
             onSeeAll={() => router.push('/(tabs)/databases')}
           />
 
           {recentDBs.length > 0 ? (
-            <View style={[s.listCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
+            <View style={[s.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {recentDBs.map((db, i) => (
                 <Pressable
                   key={db.id}
@@ -489,8 +475,8 @@ export default function DashboardScreen() {
                     s.listRow,
                     {
                       borderBottomWidth: i < recentDBs.length - 1 ? StyleSheet.hairlineWidth : 0,
-                      borderBottomColor: isDark ? P.cardBorder : colors.border,
-                      backgroundColor: pressed ? (isDark ? 'rgba(255,255,255,0.04)' : colors.muted) : 'transparent',
+                      borderBottomColor: colors.border,
+                      backgroundColor: pressed ? colors.muted : 'transparent',
                     },
                   ]}
                 >
@@ -498,22 +484,22 @@ export default function DashboardScreen() {
                     <Ionicons name="server" size={16} color={db.color} />
                   </LinearGradient>
                   <View style={s.listMeta}>
-                    <Text style={[s.listName, { color: isDark ? P.text : colors.foreground }]}>{db.name}</Text>
-                    <Text style={[s.listSub,  { color: isDark ? P.textMuted : colors.mutedForeground }]}>
+                    <Text style={[s.listName, { color: colors.foreground }]}>{db.name}</Text>
+                    <Text style={[s.listSub,  { color: colors.mutedForeground }]}>
                       {formatRelativeTime(db.lastModified)}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={14} color={isDark ? P.textMuted : colors.mutedForeground} />
+                  <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
                 </Pressable>
               ))}
             </View>
           ) : (
-            <View style={[s.emptyCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
-              <View style={[s.emptyIconBox, { backgroundColor: isDark ? '#4F8DFF18' : colors.primarySubtle }]}>
-                <Ionicons name="folder-open-outline" size={28} color={isDark ? P.primary : colors.primary} />
+            <View style={[s.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[s.emptyIconBox, { backgroundColor: colors.primarySubtle }]}>
+                <Ionicons name="folder-open-outline" size={28} color={colors.primary} />
               </View>
-              <Text style={[s.emptyTitle, { color: isDark ? P.text    : colors.foreground }]}>No Recent Databases</Text>
-              <Text style={[s.emptySub,  { color: isDark ? P.textMuted : colors.mutedForeground }]}>
+              <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Recent Databases</Text>
+              <Text style={[s.emptySub,  { color: colors.mutedForeground }]}>
                 Create or open a database to get started
               </Text>
             </View>
@@ -525,11 +511,11 @@ export default function DashboardScreen() {
           <SectionHeader
             title="SQL Templates"
             isDark={isDark}
-            primaryColor={isDark ? P.primary : colors.primary}
-            textColor={isDark ? P.text : colors.foreground}
+            primaryColor={colors.primary}
+            textColor={colors.foreground}
             onSeeAll={() => router.push('/(tabs)/editor')}
           />
-          <View style={[s.listCard, { backgroundColor: isDark ? P.card : colors.card, borderColor: isDark ? P.cardBorder : colors.border }]}>
+          <View style={[s.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {SQL_TEMPLATES.map((t, i) => (
               <Pressable
                 key={t.label}
@@ -538,8 +524,8 @@ export default function DashboardScreen() {
                   s.listRow,
                   {
                     borderBottomWidth: i < SQL_TEMPLATES.length - 1 ? StyleSheet.hairlineWidth : 0,
-                    borderBottomColor: isDark ? P.cardBorder : colors.border,
-                    backgroundColor: pressed ? (isDark ? 'rgba(255,255,255,0.04)' : colors.muted) : 'transparent',
+                    borderBottomColor: colors.border,
+                    backgroundColor: pressed ? colors.muted : 'transparent',
                   },
                 ]}
               >
@@ -547,10 +533,10 @@ export default function DashboardScreen() {
                   <Ionicons name={t.icon} size={16} color={t.color} />
                 </View>
                 <View style={s.listMeta}>
-                  <Text style={[s.listName, { color: isDark ? P.text    : colors.foreground }]}>{t.label}</Text>
-                  <Text style={[s.listSub,  { color: isDark ? P.textMuted : colors.mutedForeground }]}>{t.sub}</Text>
+                  <Text style={[s.listName, { color: colors.foreground }]}>{t.label}</Text>
+                  <Text style={[s.listSub,  { color: colors.mutedForeground }]}>{t.sub}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={isDark ? P.textMuted : colors.mutedForeground} />
+                <Ionicons name="chevron-forward" size={14} color={colors.mutedForeground} />
               </Pressable>
             ))}
           </View>

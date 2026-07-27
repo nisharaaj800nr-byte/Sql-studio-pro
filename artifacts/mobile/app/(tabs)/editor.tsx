@@ -1,8 +1,6 @@
 /**
- * SQL Editor Screen — Premium dark IDE
- * Visual: 100% parity with reference design
- * Gradient Run, syntax highlighting, glow empty state,
- * glassmorphism bottom nav via _layout.
+ * SQL Editor Screen — Premium IDE
+ * All colors sourced from useColors() — fully theme-aware (dark / light / system).
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -29,6 +27,7 @@ import { ResultGrid } from '@/components/ResultGrid';
 
 import { useDatabases } from '@/contexts/DatabaseContext';
 import { useEditor } from '@/contexts/EditorContext';
+import { useColors } from '@/hooks/useColors';
 
 import {
   beginTransaction, commitTransaction, rollbackTransaction,
@@ -36,16 +35,8 @@ import {
 } from '@/utils/sqliteManager';
 import { shareTextFile } from '@/utils/exportUtils';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const BG       = '#090D12';
-const CARD     = '#0D1117';
-const BORDER   = '#21262D';
-const MUTED    = '#111820';
-const MUTED_FG = '#7D8590';
-const FG       = '#E6EDF3';
-const ACCENT   = '#4B7BFF';
-const PURPLE   = '#7C5CFF';
+// ── Brand accent (decorative tab underline — not a surface/text color) ────────
+const PURPLE = '#7C5CFF';
 
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 60;
 
@@ -69,17 +60,18 @@ const newTab = (sql = ''): EditorTab => ({
 // ── Premium "No Results Yet" illustration ────────────────────────────────────
 
 function PremiumNoResults({ dbSelected }: { dbSelected: boolean }) {
+  const c = useColors();
   return (
-    <View style={nr.container}>
+    <View style={[nr.container, { backgroundColor: c.card }]}>
       {/* Glow illustration */}
       <View style={nr.glowWrap}>
         {/* Outer elliptical glow */}
-        <View style={[nr.glowRing3]} />
-        <View style={[nr.glowRing2]} />
-        <View style={[nr.glowRing1]} />
+        <View style={[nr.glowRing3, { backgroundColor: c.primary, shadowColor: c.primary }]} />
+        <View style={[nr.glowRing2, { backgroundColor: c.primary, shadowColor: c.primary }]} />
+        <View style={[nr.glowRing1, { backgroundColor: c.primary, shadowColor: c.primary }]} />
 
         {/* Icon box */}
-        <View style={nr.iconBox}>
+        <View style={[nr.iconBox, { shadowColor: c.primary }]}>
           {/* Blue border glow */}
           <LinearGradient
             colors={['#1A3470', '#0F1B3E']}
@@ -101,8 +93,8 @@ function PremiumNoResults({ dbSelected }: { dbSelected: boolean }) {
         </View>
       </View>
 
-      <Text style={nr.title}>No Results Yet</Text>
-      <Text style={nr.subtitle}>
+      <Text style={[nr.title, { color: c.foreground }]}>No Results Yet</Text>
+      <Text style={[nr.subtitle, { color: c.mutedForeground }]}>
         {dbSelected
           ? 'Write a query above and press Run ▶'
           : 'Select a database, then write a query'}
@@ -116,7 +108,6 @@ const nr = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CARD,
     paddingBottom: 20,
     gap: 0,
   },
@@ -134,9 +125,7 @@ const nr = StyleSheet.create({
     right: 20,
     height: 28,
     borderRadius: 20,
-    backgroundColor: ACCENT,
     opacity: 0.08,
-    shadowColor: ACCENT,
     shadowOpacity: 1,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 0 },
@@ -149,9 +138,7 @@ const nr = StyleSheet.create({
     right: 32,
     height: 20,
     borderRadius: 14,
-    backgroundColor: ACCENT,
     opacity: 0.14,
-    shadowColor: ACCENT,
     shadowOpacity: 1,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 0 },
@@ -163,9 +150,7 @@ const nr = StyleSheet.create({
     right: 44,
     height: 14,
     borderRadius: 10,
-    backgroundColor: ACCENT,
     opacity: 0.22,
-    shadowColor: ACCENT,
     shadowOpacity: 1,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -175,7 +160,6 @@ const nr = StyleSheet.create({
     height: 88,
     borderRadius: 22,
     overflow: 'hidden',
-    shadowColor: ACCENT,
     shadowOpacity: 0.5,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 4 },
@@ -208,13 +192,11 @@ const nr = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: FG,
     marginBottom: 8,
     letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: 14,
-    color: MUTED_FG,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -229,38 +211,39 @@ function ExplainPanel({
   rows: ExplainRow[];
   onClose: () => void;
 }) {
+  const c = useColors();
   return (
-    <View style={{ flex: 1, backgroundColor: CARD }}>
-      <View style={[ep.header, { borderBottomColor: BORDER }]}>
-        <View style={[ep.iconWrap, { backgroundColor: ACCENT + '18' }]}>
-          <Ionicons name="git-network-outline" size={14} color={ACCENT} />
+    <View style={{ flex: 1, backgroundColor: c.card }}>
+      <View style={[ep.header, { borderBottomColor: c.border }]}>
+        <View style={[ep.iconWrap, { backgroundColor: c.primary + '18' }]}>
+          <Ionicons name="git-network-outline" size={14} color={c.primary} />
         </View>
-        <Text style={[ep.title, { color: FG }]}>EXPLAIN QUERY PLAN</Text>
-        <Pressable onPress={onClose} hitSlop={10} style={[ep.close, { backgroundColor: MUTED }]}>
-          <Ionicons name="close" size={14} color={MUTED_FG} />
+        <Text style={[ep.title, { color: c.foreground }]}>EXPLAIN QUERY PLAN</Text>
+        <Pressable onPress={onClose} hitSlop={10} style={[ep.close, { backgroundColor: c.muted }]}>
+          <Ionicons name="close" size={14} color={c.mutedForeground} />
         </Pressable>
       </View>
       <ScrollView style={{ flex: 1 }}>
         {rows.length === 0 ? (
           <View style={ep.empty}>
-            <Text style={{ color: MUTED_FG, fontSize: 13 }}>No plan available for this query.</Text>
+            <Text style={{ color: c.mutedForeground, fontSize: 13 }}>No plan available for this query.</Text>
           </View>
         ) : (
           rows.map((row, i) => (
             <View
               key={i}
               style={[ep.row, {
-                borderBottomColor: BORDER,
+                borderBottomColor: c.border,
                 paddingLeft: 14 + row.parent * 18,
-                backgroundColor: i % 2 === 0 ? 'transparent' : MUTED + '40',
+                backgroundColor: i % 2 === 0 ? 'transparent' : c.muted + '40',
               }]}
             >
               <View style={{ paddingTop: 6 }}>
-                <View style={[ep.bullet, { backgroundColor: ACCENT + '60' }]} />
+                <View style={[ep.bullet, { backgroundColor: c.primary + '60' }]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: FG, fontSize: 12, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{row.detail}</Text>
-                <Text style={{ color: MUTED_FG, fontSize: 10, marginTop: 2 }}>Node {row.id}{row.parent > 0 ? ` · parent ${row.parent}` : ''}</Text>
+                <Text style={{ color: c.foreground, fontSize: 12, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{row.detail}</Text>
+                <Text style={{ color: c.mutedForeground, fontSize: 10, marginTop: 2 }}>Node {row.id}{row.parent > 0 ? ` · parent ${row.parent}` : ''}</Text>
               </View>
             </View>
           ))
@@ -284,6 +267,7 @@ const ep = StyleSheet.create({
 
 function EditorInner() {
   const insets = useSafeAreaInsets();
+  const c = useColors();
   const { databases, activeDbId, setActiveDbId } = useDatabases();
   const { queryResult, isExecuting, executeQuery, saveQuery, savedQueries, deleteSavedQuery } = useEditor();
 
@@ -435,51 +419,54 @@ function EditorInner() {
   };
 
   return (
-    <View style={[s.screen, { backgroundColor: BG, paddingTop: insets.top }]}>
+    <View style={[s.screen, { backgroundColor: c.background, paddingTop: insets.top }]}>
 
       {/* ── DB selector row ──────────────────────────────────────── */}
-      <View style={[s.dbRow, { backgroundColor: CARD, borderBottomColor: BORDER }]}>
+      <View style={[s.dbRow, { backgroundColor: c.card, borderBottomColor: c.border }]}>
         {/* Selector pill */}
         <Pressable
           onPress={handlePickDatabase}
-          style={({ pressed }) => [s.dbSelector, { opacity: pressed ? 0.8 : 1 }]}
+          style={({ pressed }) => [
+            s.dbSelector,
+            { opacity: pressed ? 0.8 : 1, borderColor: c.border, backgroundColor: c.muted },
+          ]}
         >
           {/* Cylinder icon */}
           <View style={s.dbIconWrap}>
-            <Ionicons name="server-outline" size={15} color={ACCENT} />
+            <Ionicons name="server-outline" size={15} color={c.primary} />
           </View>
-          <Text style={[s.dbSelectorText, { color: activeDb ? FG : MUTED_FG }]} numberOfLines={1}>
+          <Text style={[s.dbSelectorText, { color: activeDb ? c.foreground : c.mutedForeground }]} numberOfLines={1}>
             {activeDb ? activeDb.name : 'Select database...'}
           </Text>
-          <Ionicons name="chevron-down" size={13} color={MUTED_FG} />
+          <Ionicons name="chevron-down" size={13} color={c.mutedForeground} />
         </Pressable>
 
         {/* Action icon buttons */}
         <Pressable
           onPress={() => setShowSaved(true)}
-          style={s.iconBtn}
+          style={[s.iconBtn, { backgroundColor: c.muted, borderColor: c.border }]}
           hitSlop={8}
         >
-          <Ionicons name="bookmark-outline" size={16} color={MUTED_FG} />
+          <Ionicons name="bookmark-outline" size={16} color={c.mutedForeground} />
         </Pressable>
         <Pressable
           onPress={handleExplain}
-          style={s.iconBtn}
+          style={[s.iconBtn, { backgroundColor: c.muted, borderColor: c.border }]}
           hitSlop={8}
         >
-          <Ionicons name="funnel-outline" size={16} color={MUTED_FG} />
+          <Ionicons name="funnel-outline" size={16} color={c.mutedForeground} />
         </Pressable>
         <Pressable
           onPress={() => setShowSaveModal(true)}
-          style={s.iconBtn}
+          style={[s.iconBtn, { backgroundColor: c.muted, borderColor: c.border }]}
           hitSlop={8}
         >
-          <Ionicons name="save-outline" size={16} color={MUTED_FG} />
+          <Ionicons name="save-outline" size={16} color={c.mutedForeground} />
         </Pressable>
       </View>
 
       {/* ── Tab bar ──────────────────────────────────────────────── */}
-      <View style={[s.tabBarWrap, { backgroundColor: CARD, borderBottomColor: BORDER }]}>
+      <View style={[s.tabBarWrap, { backgroundColor: c.card, borderBottomColor: c.border }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -495,32 +482,32 @@ function EditorInner() {
                 style={[s.tab, active && s.tabActive]}
               >
                 {tab.unsaved && (
-                  <View style={[s.unsavedDot, { backgroundColor: active ? ACCENT : MUTED_FG }]} />
+                  <View style={[s.unsavedDot, { backgroundColor: active ? c.primary : c.mutedForeground }]} />
                 )}
                 <Text style={[s.tabLabel, {
-                  color: active ? FG : MUTED_FG,
+                  color: active ? c.foreground : c.mutedForeground,
                   fontWeight: active ? '600' : '400',
                 }]}>
                   {tab.label}
                 </Text>
                 {tabs.length > 1 && (
                   <Pressable onPress={() => closeTab(tab.id)} hitSlop={6} style={s.closeTabBtn}>
-                    <Ionicons name="close" size={11} color={active ? MUTED_FG : MUTED_FG + '80'} />
+                    <Ionicons name="close" size={11} color={active ? c.mutedForeground : c.mutedForeground + '80'} />
                   </Pressable>
                 )}
                 {/* Active underline */}
-                {active && <View style={s.tabUnderline} />}
+                {active && <View style={[s.tabUnderline, { backgroundColor: PURPLE }]} />}
               </Pressable>
             );
           })}
           <Pressable onPress={addTab} style={s.addTabBtn} hitSlop={8}>
-            <Ionicons name="add" size={16} color={MUTED_FG} />
+            <Ionicons name="add" size={16} color={c.mutedForeground} />
           </Pressable>
         </ScrollView>
       </View>
 
       {/* ── SQL Editor (toolbar + code + info + chips) ──────────── */}
-      <View style={s.editorContainer}>
+      <View style={[s.editorContainer, { backgroundColor: c.background }]}>
         <SQLEditor
           value={currentSql}
           onChange={updateTabSql}
@@ -617,8 +604,6 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: MUTED,
     minHeight: 42,
   },
   dbIconWrap: {
@@ -632,9 +617,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: MUTED,
     borderWidth: 1,
-    borderColor: BORDER,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -665,7 +648,6 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: PURPLE,
     borderRadius: 1,
   },
   unsavedDot: { width: 5, height: 5, borderRadius: 2.5 },
@@ -680,6 +662,6 @@ const s = StyleSheet.create({
   },
 
   // Editor / results split
-  editorContainer: { flex: 2, backgroundColor: BG, minHeight: 180 },
+  editorContainer: { flex: 2, minHeight: 180 },
   results: { flex: 1.2, minHeight: 160 },
 });

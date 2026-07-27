@@ -237,6 +237,12 @@ function ValueLabel({ text, color = D.primary }: { text: string; color?: string 
 // Theme picker
 // ─────────────────────────────────────────────────────────────────────────────
 
+const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
+  { mode: 'dark',   label: 'Dark',   icon: 'moon' },
+  { mode: 'light',  label: 'Light',  icon: 'sunny' },
+  { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
+];
+
 function ThemePicker({
   themeMode,
   onSelect,
@@ -247,15 +253,36 @@ function ThemePicker({
   const colors = useColors();
   return (
     <Card>
-      <View style={[styles.row, styles.rowFirst, { paddingVertical: 14, backgroundColor: colors.card }]}>
+      <View style={[styles.row, styles.rowFirst, styles.rowLast, { paddingVertical: 14, backgroundColor: colors.card }]}>
         <IconBox name="color-palette" set="ionicons" color={D.primary} />
         <View style={styles.rowBody}>
           <Text style={[styles.rowLabel, { color: colors.foreground }]}>Theme</Text>
-          <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>Dark mode (default)</Text>
+          <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>
+            {themeMode === 'system' ? 'Follows device setting' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'}
+          </Text>
         </View>
-        <View style={styles.chipRow}>
-          <Ionicons name="moon" size={16} color={D.primary} />
-          <Text style={[styles.classicChip, { color: D.primary }]}>Dark</Text>
+        <View style={styles.themeChipsRow}>
+          {THEME_OPTIONS.map(opt => {
+            const isActive = themeMode === opt.mode;
+            return (
+              <Pressable
+                key={opt.mode}
+                onPress={() => { onSelect(opt.mode); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={[
+                  styles.themeChip,
+                  {
+                    backgroundColor: isActive ? D.primary + '22' : colors.muted,
+                    borderColor: isActive ? D.primary : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name={opt.icon} size={13} color={isActive ? D.primary : colors.mutedForeground} />
+                <Text style={[styles.themeChipLabel, { color: isActive ? D.primary : colors.mutedForeground }]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
     </Card>

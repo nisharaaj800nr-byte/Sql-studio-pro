@@ -1,5 +1,6 @@
 /**
  * Transaction UI Bar — BEGIN / COMMIT / ROLLBACK buttons in the SQL editor.
+ * All colors sourced from useColors() — fully theme-aware.
  */
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -24,11 +25,17 @@ export function TransactionBar({
   const colors = useColors();
 
   return (
-    <View style={[styles.bar, { backgroundColor: inTransaction ? '#1C1200' : colors.card, borderTopColor: colors.border }]}>
+    <View style={[
+      styles.bar,
+      {
+        backgroundColor: inTransaction ? colors.warningSubtle : colors.card,
+        borderTopColor: colors.border,
+      },
+    ]}>
       {inTransaction && (
         <View style={styles.indicator}>
-          <View style={[styles.dot, { backgroundColor: '#FFA657' }]} />
-          <Text style={styles.inTxText}>Transaction open</Text>
+          <View style={[styles.dot, { backgroundColor: colors.warning }]} />
+          <Text style={[styles.inTxText, { color: colors.warning }]}>Transaction open</Text>
         </View>
       )}
 
@@ -46,17 +53,17 @@ export function TransactionBar({
         <View style={styles.txBtns}>
           <Pressable
             onPress={onCommit}
-            style={({ pressed }) => [styles.btn, { backgroundColor: '#0D2A0D', opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.btn, { backgroundColor: colors.accentSubtle, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Ionicons name="checkmark-circle-outline" size={13} color="#3FB950" />
-            <Text style={[styles.btnText, { color: '#3FB950' }]}>COMMIT</Text>
+            <Ionicons name="checkmark-circle-outline" size={13} color={colors.accent} />
+            <Text style={[styles.btnText, { color: colors.accent }]}>COMMIT</Text>
           </Pressable>
           <Pressable
             onPress={onRollback}
-            style={({ pressed }) => [styles.btn, { backgroundColor: '#2A0D0D', opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.btn, { backgroundColor: colors.destructiveSubtle, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Ionicons name="arrow-undo-circle-outline" size={13} color="#F85149" />
-            <Text style={[styles.btnText, { color: '#F85149' }]}>ROLLBACK</Text>
+            <Ionicons name="arrow-undo-circle-outline" size={13} color={colors.destructive} />
+            <Text style={[styles.btnText, { color: colors.destructive }]}>ROLLBACK</Text>
           </Pressable>
         </View>
       )}
@@ -75,7 +82,7 @@ const styles = StyleSheet.create({
   },
   indicator: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  inTxText: { color: '#FFA657', fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  inTxText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
   txBtns: { flexDirection: 'row', gap: 6, marginLeft: 'auto' },
   btn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
