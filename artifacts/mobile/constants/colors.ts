@@ -67,14 +67,14 @@ const colors = {
     sqlType: '#0369A1',
     sqlPunctuation: '#475569',
 
-    // Editor
-    editorBg: '#1E2030',
-    editorText: '#CDD6F4',
-    editorLineNumber: '#454560',
-    editorCaret: '#89B4FA',
-    editorSelection: '#2D3748',
-    editorCurrentLine: '#1C1E2A',
-    editorGutter: '#1A1C2B',
+    // Editor (light theme — crisp white IDE)
+    editorBg: '#FFFFFF',
+    editorText: '#1F2937',
+    editorLineNumber: '#94A3B8',
+    editorCaret: '#2563EB',
+    editorSelection: '#BFDBFE',
+    editorCurrentLine: '#F8FAFC',
+    editorGutter: '#F1F5F9',
 
     // Overlay
     overlay: 'rgba(0,0,0,0.5)',

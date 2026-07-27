@@ -1,8 +1,11 @@
 /**
- * SQLEditor — Premium dark IDE component
+ * SQLEditor — Premium IDE component with full theme support.
  * Features: syntax-highlighting overlay, gradient Run button,
  * BEGIN/COMMIT/ROLLBACK inline toolbar, cursor position tracking,
  * info status bar, SQL keyword chips.
+ *
+ * All colours come from useColors() so the editor respects the
+ * Dark / Light / Auto theme chosen in Settings.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -72,13 +75,13 @@ const SQL_SNIPPETS = [
 function getTokenColor(type: TokenType, colors: ReturnType<typeof useColors>): string {
   switch (type) {
     case 'keyword':    return colors.sqlKeyword;
-    case 'string':     return '#56D364';  // green strings
+    case 'string':     return colors.sqlString;
     case 'comment':    return colors.sqlComment;
     case 'number':     return colors.sqlNumber;
     case 'function':   return colors.sqlFunction;
     case 'operator':   return colors.sqlOperator;
-    case 'identifier': return '#A5D6FF';  // light blue identifiers
-    case 'parameter':  return '#FFA657';  // orange params
+    case 'identifier': return colors.sqlType;
+    case 'parameter':  return colors.warning;
     case 'punctuation':return colors.sqlPunctuation;
     case 'whitespace': return 'transparent';
     default:           return colors.editorText;
@@ -105,7 +108,7 @@ function HighlightedSQL({
   }
   const tokens = tokenize(value);
   return (
-    <Text style={style} selectable={false}>
+    <Text style={[style, { color: colors.editorText }]} selectable={false}>
       {tokens.map((token, i) => (
         <Text
           key={i}
@@ -247,7 +250,7 @@ export function SQLEditor({
   // Hint text derived from SQL content
   const getHint = () => {
     const upper = value.toUpperCase();
-    if (upper.includes('SELECT *')) return 'SELECT * returns every column • See by columns exp...';
+    if (upper.includes('SELECT *')) return 'SELECT * returns every column. Specify columns explicitly for large tables.';
     if (upper.includes('SELECT')) return 'SELECT query • Run to see results';
     if (upper.includes('INSERT')) return 'INSERT statement • Use WITH RETURNING to check inserted rows';
     if (upper.includes('UPDATE')) return 'UPDATE statement • Backs up automatically if destructive';
@@ -270,7 +273,7 @@ export function SQLEditor({
   const renderTxButton = () => {
     if (txLoading) {
       return (
-        <View style={s.beginBtn}>
+        <View style={[s.beginBtn, { backgroundColor: colors.elevated, borderColor: colors.border }]}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       );
@@ -279,11 +282,14 @@ export function SQLEditor({
       return (
         <Pressable
           onPress={onBegin}
-          style={({ pressed }) => [s.beginBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [
+            s.beginBtn,
+            { opacity: pressed ? 0.7 : 1, backgroundColor: colors.elevated, borderColor: colors.border },
+          ]}
           hitSlop={6}
         >
-          <Ionicons name="play" size={11} color="#E6EDF3" />
-          <Text style={s.beginText}>BEGIN</Text>
+          <Ionicons name="play" size={11} color={colors.foreground} />
+          <Text style={[s.beginText, { color: colors.foreground }]}>BEGIN</Text>
         </Pressable>
       );
     }
@@ -291,19 +297,25 @@ export function SQLEditor({
       <View style={{ flexDirection: 'row', gap: 6 }}>
         <Pressable
           onPress={onCommit}
-          style={({ pressed }) => [s.commitBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [
+            s.commitBtn,
+            { opacity: pressed ? 0.7 : 1, backgroundColor: colors.accentSubtle, borderColor: colors.accent + '44' },
+          ]}
           hitSlop={6}
         >
-          <Ionicons name="checkmark" size={11} color="#3FB950" />
-          <Text style={[s.beginText, { color: '#3FB950' }]}>COMMIT</Text>
+          <Ionicons name="checkmark" size={11} color={colors.accent} />
+          <Text style={[s.beginText, { color: colors.accent }]}>COMMIT</Text>
         </Pressable>
         <Pressable
           onPress={onRollback}
-          style={({ pressed }) => [s.rollbackBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [
+            s.rollbackBtn,
+            { opacity: pressed ? 0.7 : 1, backgroundColor: colors.destructiveSubtle, borderColor: colors.destructive + '44' },
+          ]}
           hitSlop={6}
         >
-          <Ionicons name="arrow-undo" size={11} color="#F85149" />
-          <Text style={[s.beginText, { color: '#F85149' }]}>ROLLBACK</Text>
+          <Ionicons name="arrow-undo" size={11} color={colors.destructive} />
+          <Text style={[s.beginText, { color: colors.destructive }]}>ROLLBACK</Text>
         </Pressable>
       </View>
     );
@@ -313,14 +325,14 @@ export function SQLEditor({
     <View style={s.container}>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
-      <View style={[s.toolbar, { backgroundColor: '#0D1117', borderBottomColor: '#21262D' }]}>
+      <View style={[s.toolbar, { backgroundColor: colors.backgroundSecondary, borderBottomColor: colors.border }]}>
         {/* LEFT: BEGIN / COMMIT / ROLLBACK */}
         {renderTxButton()}
 
         {/* Transaction open indicator */}
         {inTransaction && (
           <View style={s.txIndicator}>
-            <View style={s.txDot} />
+            <View style={[s.txDot, { backgroundColor: colors.warning }]} />
           </View>
         )}
 
@@ -328,16 +340,16 @@ export function SQLEditor({
 
         {/* RIGHT: format / settings / run */}
         <Pressable onPress={handleFormat} style={s.toolbarIconBtn} hitSlop={8}>
-          <Ionicons name="sparkles-outline" size={18} color="#7D8590" />
+          <Ionicons name="sparkles-outline" size={18} color={colors.mutedForeground} />
         </Pressable>
         <Pressable onPress={onOpenSettings} style={s.toolbarIconBtn} hitSlop={8}>
-          <Ionicons name="settings-outline" size={18} color="#7D8590" />
+          <Ionicons name="settings-outline" size={18} color={colors.mutedForeground} />
         </Pressable>
 
         {/* Gradient Run button */}
         <Pressable onPress={handleRun} disabled={isExecuting || hasHardError} style={s.runPressable}>
           <LinearGradient
-            colors={isExecuting || hasHardError ? ['#1E2336', '#1E2336'] : ['#4B7BFF', '#7C5CFF']}
+            colors={isExecuting || hasHardError ? [colors.muted, colors.muted] : ['#4B7BFF', '#7C5CFF']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={s.runGradient}
@@ -348,10 +360,10 @@ export function SQLEditor({
               <Ionicons
                 name={hasHardError ? 'ban-outline' : 'play'}
                 size={12}
-                color={hasHardError ? '#F85149' : '#fff'}
+                color={hasHardError ? colors.destructive : '#fff'}
               />
             )}
-            <Text style={[s.runText, { color: hasHardError ? '#F85149' : '#fff' }]}>
+            <Text style={[s.runText, { color: hasHardError ? colors.destructive : '#fff' }]}>
               {isExecuting ? 'Running…' : hasHardError ? 'Error' : 'Run'}
             </Text>
           </LinearGradient>
@@ -360,23 +372,23 @@ export function SQLEditor({
 
       {/* ── Editor: line numbers + syntax highlighted input ───────── */}
       <ScrollView
-        style={[s.editorScroll, { backgroundColor: '#090D12' }]}
+        style={[s.editorScroll, { backgroundColor: colors.editorBg }]}
         keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
       >
         <View style={s.editorInner}>
 
           {/* Line numbers */}
-          <View style={[s.lineNums, { borderRightColor: '#21262D' }]}>
+          <View style={[s.lineNums, { borderRightColor: colors.border, backgroundColor: colors.editorBg }]}>
             {isLargeDocument ? (
-              <Text style={[s.lineNum, { color: '#3D444D', fontSize: fontSize - 1, lineHeight }]}>
+              <Text style={[s.lineNum, { color: colors.editorLineNumber, fontSize: fontSize - 1, lineHeight }]}>
                 {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
               </Text>
             ) : (
               Array.from({ length: lineCount }, (_, i) => (
                 <Text
                   key={i}
-                  style={[s.lineNum, { color: '#3D444D', fontSize: fontSize - 1, lineHeight }]}
+                  style={[s.lineNum, { color: colors.editorLineNumber, fontSize: fontSize - 1, lineHeight }]}
                 >
                   {i + 1}
                 </Text>
@@ -406,7 +418,7 @@ export function SQLEditor({
                 s.codeInput,
                 {
                   minHeight: lineCount * lineHeight + 34,
-                  color: Platform.OS === 'android' ? '#E6EDF3' : 'transparent',
+                  color: Platform.OS === 'android' ? colors.editorText : 'transparent',
                 },
               ]}
               multiline
@@ -415,8 +427,8 @@ export function SQLEditor({
               autoCapitalize="none"
               spellCheck={false}
               keyboardType={Platform.OS === 'android' ? 'default' : 'ascii-capable'}
-              selectionColor="#58A6FF"
-              placeholderTextColor="#3D444D"
+              selectionColor={colors.editorCaret}
+              placeholderTextColor={colors.editorLineNumber}
               placeholder="-- Write your SQLite query here…"
               textAlignVertical="top"
             />
@@ -429,18 +441,18 @@ export function SQLEditor({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={[s.suggestBar, { backgroundColor: '#0D1117', borderTopColor: '#21262D' }]}
+          style={[s.suggestBar, { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.border }]}
           contentContainerStyle={s.suggestContent}
           keyboardShouldPersistTaps="always"
         >
-          <Text style={s.suggestLabel}>Suggest</Text>
+          <Text style={[s.suggestLabel, { color: colors.mutedForeground }]}>Suggest</Text>
           {suggestions.map(s2 => (
             <Pressable
               key={s2}
               onPress={() => applySuggestion(s2)}
-              style={[s.suggestChip, { backgroundColor: '#111820', borderColor: '#21262D' }]}
+              style={[s.suggestChip, { backgroundColor: colors.muted, borderColor: colors.border }]}
             >
-              <Text style={[s.suggestText, { color: '#79C0FF' }]}>{s2}</Text>
+              <Text style={[s.suggestText, { color: colors.sqlKeyword }]}>{s2}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -451,10 +463,10 @@ export function SQLEditor({
         // Show first diagnostic if present, otherwise show cursor hint
         const firstDiag = diagnostics[0];
         const diagColor = firstDiag
-          ? firstDiag.severity === 'error' ? '#F85149'
-            : firstDiag.severity === 'warning' ? '#F0A000'
-            : '#58A6FF'
-          : '#4B7BFF';
+          ? firstDiag.severity === 'error' ? colors.destructive
+            : firstDiag.severity === 'warning' ? colors.warning
+            : colors.info
+          : colors.primary;
         const diagIcon: React.ComponentProps<typeof Ionicons>['name'] = firstDiag
           ? firstDiag.severity === 'error' ? 'close-circle'
             : firstDiag.severity === 'warning' ? 'warning'
@@ -467,14 +479,14 @@ export function SQLEditor({
               : getHint();
 
         return (
-          <View style={[s.infoBar, { backgroundColor: '#0D1117', borderTopColor: '#21262D' }]}>
+          <View style={[s.infoBar, { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.border }]}>
             <Ionicons name={diagIcon} size={14} color={diagColor} style={{ marginRight: 4 }} />
-            <Text style={s.infoText} numberOfLines={1}>
-              <Text style={s.infoCursor}>Ln {cursorPos.line}, Col {cursorPos.col}</Text>
-              <Text style={s.infoDot}>  •  </Text>
-              <Text style={{ color: firstDiag ? diagColor : '#7D8590' }}>{infoMsg}</Text>
+            <Text style={[s.infoText, { color: colors.mutedForeground }]} numberOfLines={1}>
+              <Text style={{ color: colors.foreground, fontWeight: '500' }}>Ln {cursorPos.line}, Col {cursorPos.col}</Text>
+              <Text style={{ color: colors.border }}>  •  </Text>
+              <Text style={{ color: firstDiag ? diagColor : colors.mutedForeground }}>{infoMsg}</Text>
             </Text>
-            <Ionicons name="chevron-down" size={14} color="#3D444D" style={{ marginLeft: 4 }} />
+            <Ionicons name="chevron-down" size={14} color={colors.editorLineNumber} style={{ marginLeft: 4 }} />
           </View>
         );
       })()}
@@ -483,7 +495,7 @@ export function SQLEditor({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={[s.chipBar, { backgroundColor: '#0D1117', borderTopColor: '#21262D' }]}
+        style={[s.chipBar, { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.border }]}
         contentContainerStyle={s.chipContent}
         keyboardShouldPersistTaps="always"
       >
@@ -494,18 +506,18 @@ export function SQLEditor({
             style={({ pressed }) => [
               s.chip,
               {
-                backgroundColor: pressed ? '#1E2A4A' : '#111820',
-                borderColor: pressed ? '#4B7BFF55' : '#21262D',
+                backgroundColor: pressed ? colors.primarySubtle : colors.muted,
+                borderColor: pressed ? colors.primary + '55' : colors.border,
               },
             ]}
           >
-            <Text style={[s.chipText, { color: '#79C0FF', fontFamily: MONO_FONT }]}>
+            <Text style={[s.chipText, { color: colors.sqlKeyword, fontFamily: MONO_FONT }]}>
               {chip.label}
             </Text>
           </Pressable>
         ))}
         {/* Separator */}
-        <View style={s.chipSep} />
+        <View style={[s.chipSep, { backgroundColor: colors.border }]} />
         {/* Additional snippets */}
         {SQL_SNIPPETS.map(chip => (
           <Pressable
@@ -514,12 +526,12 @@ export function SQLEditor({
             style={({ pressed }) => [
               s.chip,
               {
-                backgroundColor: pressed ? '#1E2A4A' : '#111820',
-                borderColor: pressed ? '#4B7BFF55' : '#21262D',
+                backgroundColor: pressed ? colors.primarySubtle : colors.muted,
+                borderColor: pressed ? colors.primary + '55' : colors.border,
               },
             ]}
           >
-            <Text style={[s.chipText, { color: '#7D8590', fontFamily: MONO_FONT }]}>
+            <Text style={[s.chipText, { color: colors.mutedForeground, fontFamily: MONO_FONT }]}>
               {chip.label}
             </Text>
           </Pressable>
@@ -532,8 +544,9 @@ export function SQLEditor({
 // ── Diagnostic chip ──────────────────────────────────────────────────────────
 
 function DiagnosticChip({ item }: { item: SQLDiagnostic }) {
-  const color = item.severity === 'error' ? '#F85149'
-    : item.severity === 'warning' ? '#F0A000' : '#7D8590';
+  const colors = useColors();
+  const color = item.severity === 'error' ? colors.destructive
+    : item.severity === 'warning' ? colors.warning : colors.mutedForeground;
   const iconName: React.ComponentProps<typeof Ionicons>['name'] =
     item.severity === 'error' ? 'close-circle'
     : item.severity === 'warning' ? 'warning' : 'information-circle';
@@ -556,7 +569,7 @@ const dc = StyleSheet.create({
   text: { fontSize: 11, maxWidth: 300, flexShrink: 1 },
 });
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles (layout only — no hardcoded colours) ──────────────────────────────
 
 const s = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
@@ -579,24 +592,20 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#30363D',
-    backgroundColor: '#161B22',
   },
   commitBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 8, borderWidth: 1, borderColor: '#1a3a1a',
-    backgroundColor: '#0D2A0D',
+    borderRadius: 8, borderWidth: 1,
   },
   rollbackBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 8, borderWidth: 1, borderColor: '#3a1a1a',
-    backgroundColor: '#2A0D0D',
+    borderRadius: 8, borderWidth: 1,
   },
-  beginText: { fontSize: 12, fontWeight: '700', color: '#E6EDF3', letterSpacing: 0.3 },
+  beginText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
   txIndicator: { marginLeft: 4 },
-  txDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFA657' },
+  txDot: { width: 6, height: 6, borderRadius: 3 },
   toolbarSpacer: { flex: 1 },
   toolbarIconBtn: { padding: 6 },
   runPressable: { marginLeft: 4 },
@@ -628,7 +637,6 @@ const s = StyleSheet.create({
   codeOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    color: '#E6EDF3',
     pointerEvents: 'none',
   } as any,
   codeInput: {
@@ -645,9 +653,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  infoText: { flex: 1, fontSize: 11, color: '#7D8590' },
-  infoCursor: { color: '#C9D1D9', fontWeight: '500' },
-  infoDot: { color: '#3D444D' },
+  infoText: { flex: 1, fontSize: 11 },
 
   // SQL chips
   chipBar: {
@@ -663,12 +669,12 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   chipText: { fontSize: 11, fontWeight: '600' },
-  chipSep: { width: 1, height: 18, backgroundColor: '#21262D', marginHorizontal: 2 },
+  chipSep: { width: 1, height: 18, marginHorizontal: 2 },
 
   // Suggestions
   suggestBar: { borderTopWidth: StyleSheet.hairlineWidth, maxHeight: 36, flexGrow: 0 },
   suggestContent: { paddingHorizontal: 10, paddingVertical: 4, gap: 6, alignItems: 'center' },
-  suggestLabel: { fontSize: 10, color: '#7D8590', fontWeight: '600', marginRight: 2 },
+  suggestLabel: { fontSize: 10, fontWeight: '600', marginRight: 2 },
   suggestChip: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
   suggestText: { fontSize: 11, fontFamily: MONO_FONT },
 
