@@ -1,5 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext } from 'react';
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
@@ -13,22 +12,12 @@ const ThemeContext = createContext<ThemeContextType>({
   setThemeMode: () => {},
 });
 
-const THEME_STORAGE_KEY = '@sqlstudio_theme_v1';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
-
-  useEffect(() => {
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then(stored => {
-      if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        setThemeModeState(stored);
-      }
-    });
-  }, []);
-
-  const setThemeMode = useCallback((mode: ThemeMode) => {
-    setThemeModeState(mode);
-    AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+  // App is locked to dark theme — all screens are designed for dark only.
+  const themeMode: ThemeMode = 'dark';
+  const setThemeMode = useCallback((_mode: ThemeMode) => {
+    // no-op: theme is locked to dark
   }, []);
 
   return (

@@ -237,12 +237,6 @@ function ValueLabel({ text, color = D.primary }: { text: string; color?: string 
 // Theme picker
 // ─────────────────────────────────────────────────────────────────────────────
 
-const THEME_OPTS: { mode: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-  { mode: 'dark',   label: 'Dark',  icon: 'moon' },
-  { mode: 'light',  label: 'Light', icon: 'sunny' },
-  { mode: 'system', label: 'Auto',  icon: 'phone-portrait-outline' },
-];
-
 function ThemePicker({
   themeMode,
   onSelect,
@@ -253,66 +247,16 @@ function ThemePicker({
   const colors = useColors();
   return (
     <Card>
-      {/* Header row */}
       <View style={[styles.row, styles.rowFirst, { paddingVertical: 14, backgroundColor: colors.card }]}>
         <IconBox name="color-palette" set="ionicons" color={D.primary} />
         <View style={styles.rowBody}>
           <Text style={[styles.rowLabel, { color: colors.foreground }]}>Theme</Text>
-          <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>Choose your preferred theme</Text>
+          <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>Dark mode (default)</Text>
         </View>
         <View style={styles.chipRow}>
-          <Text style={styles.classicChip}>Classic</Text>
-          <MaterialIcons name="chevron-right" size={16} color={D.primary} />
+          <Ionicons name="moon" size={16} color={D.primary} />
+          <Text style={[styles.classicChip, { color: D.primary }]}>Dark</Text>
         </View>
-      </View>
-
-      <Divider />
-
-      {/* Three buttons */}
-      <View style={[styles.themeRow, { backgroundColor: colors.card }]}>
-        {THEME_OPTS.map(opt => {
-          const active = themeMode === opt.mode;
-          return (
-            <Pressable
-              key={opt.mode}
-              onPress={() => {
-                onSelect(opt.mode);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              style={[
-                styles.themeBtn,
-                active
-                  ? {
-                      backgroundColor: D.primarySubtle,
-                      borderColor: D.primary,
-                      shadowColor: D.primary,
-                      shadowOpacity: 0.4,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 0 },
-                    }
-                  : {
-                      backgroundColor: colors.muted,
-                      borderColor: colors.border,
-                    },
-              ]}
-            >
-              <Ionicons
-                name={opt.icon}
-                size={22}
-                color={active ? D.primary : colors.mutedForeground}
-              />
-              <Text
-                style={[
-                  styles.themeBtnLabel,
-                  { color: active ? D.primary : colors.foreground, fontWeight: active ? '700' : '500' },
-                ]}
-              >
-                {opt.label}
-              </Text>
-              {active && <View style={styles.activeDot} />}
-            </Pressable>
-          );
-        })}
       </View>
     </Card>
   );
