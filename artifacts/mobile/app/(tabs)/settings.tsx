@@ -54,13 +54,15 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SectionLabel({ title }: { title: string }) {
+  const colors = useColors();
   return (
-    <Text style={styles.sectionLabel}>{title.toUpperCase()}</Text>
+    <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{title.toUpperCase()}</Text>
   );
 }
 
 function Divider() {
-  return <View style={styles.divider} />;
+  const colors = useColors();
+  return <View style={[styles.divider, { backgroundColor: colors.border }]} />;
 }
 
 // Animated press row
@@ -151,7 +153,8 @@ function SettingRow({
   isFirst = false,
   isLast = false,
 }: RowProps) {
-  const labelColor = danger ? D.destructive : D.rowLabel;
+  const colors = useColors();
+  const labelColor = danger ? D.destructive : colors.foreground;
   const tint = danger ? D.destructive : iconColor;
 
   return (
@@ -159,6 +162,7 @@ function SettingRow({
       onPress={onPress}
       style={[
         styles.row,
+        { backgroundColor: colors.card },
         isFirst && styles.rowFirst,
         isLast && styles.rowLast,
       ]}
@@ -167,7 +171,7 @@ function SettingRow({
       <View style={styles.rowBody}>
         <Text style={[styles.rowLabel, { color: labelColor }]}>{label}</Text>
         {desc !== undefined && (
-          <Text style={[styles.rowDesc, { color: danger ? D.destructive + 'BB' : D.rowDesc }]}>
+          <Text style={[styles.rowDesc, { color: danger ? D.destructive + 'BB' : colors.mutedForeground }]}>
             {desc}
           </Text>
         )}
@@ -175,7 +179,7 @@ function SettingRow({
       {right !== undefined
         ? right
         : onPress
-        ? <MaterialIcons name="chevron-right" size={20} color={D.sectionLabel} />
+        ? <MaterialIcons name="chevron-right" size={20} color={colors.mutedForeground} />
         : null}
     </PressRow>
   );
@@ -189,8 +193,9 @@ function Card({
   children: React.ReactNode;
   style?: any;
 }) {
+  const colors = useColors();
   return (
-    <View style={[styles.card, style]}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
       {children}
     </View>
   );
@@ -245,14 +250,15 @@ function ThemePicker({
   themeMode: ThemeMode;
   onSelect: (m: ThemeMode) => void;
 }) {
+  const colors = useColors();
   return (
     <Card>
       {/* Header row */}
-      <View style={[styles.row, styles.rowFirst, { paddingVertical: 14 }]}>
+      <View style={[styles.row, styles.rowFirst, { paddingVertical: 14, backgroundColor: colors.card }]}>
         <IconBox name="color-palette" set="ionicons" color={D.primary} />
         <View style={styles.rowBody}>
-          <Text style={styles.rowLabel}>Theme</Text>
-          <Text style={[styles.rowDesc, { color: D.rowDesc }]}>Choose your preferred theme</Text>
+          <Text style={[styles.rowLabel, { color: colors.foreground }]}>Theme</Text>
+          <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>Choose your preferred theme</Text>
         </View>
         <View style={styles.chipRow}>
           <Text style={styles.classicChip}>Classic</Text>
@@ -263,7 +269,7 @@ function ThemePicker({
       <Divider />
 
       {/* Three buttons */}
-      <View style={styles.themeRow}>
+      <View style={[styles.themeRow, { backgroundColor: colors.card }]}>
         {THEME_OPTS.map(opt => {
           const active = themeMode === opt.mode;
           return (
@@ -285,20 +291,20 @@ function ThemePicker({
                       shadowOffset: { width: 0, height: 0 },
                     }
                   : {
-                      backgroundColor: D.muted,
-                      borderColor: D.cardBorder,
+                      backgroundColor: colors.muted,
+                      borderColor: colors.border,
                     },
               ]}
             >
               <Ionicons
                 name={opt.icon}
                 size={22}
-                color={active ? D.primary : D.sectionLabel}
+                color={active ? D.primary : colors.mutedForeground}
               />
               <Text
                 style={[
                   styles.themeBtnLabel,
-                  { color: active ? D.primary : D.rowLabel, fontWeight: active ? '700' : '500' },
+                  { color: active ? D.primary : colors.foreground, fontWeight: active ? '700' : '500' },
                 ]}
               >
                 {opt.label}
@@ -323,6 +329,7 @@ function EngineCard({
   sqliteCaps: SQLiteCapabilities | null;
   onPress?: () => void;
 }) {
+  const colors = useColors();
   const CAPS = sqliteCaps
     ? [
         { label: 'Window',    ok: sqliteCaps.supportsWindowFunctions },
@@ -343,26 +350,26 @@ function EngineCard({
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.engineInner}>
+      <View style={[styles.engineInner, { backgroundColor: colors.card }]}>
         {/* Engine row */}
-        <PressRow onPress={onPress} style={styles.engineRow}>
+        <PressRow onPress={onPress} style={[styles.engineRow, { backgroundColor: colors.card }]}>
           <IconBox name="database" set="community" color={D.primary} size={18} />
           <View style={styles.rowBody}>
-            <Text style={styles.rowLabel}>Engine</Text>
-            <Text style={[styles.rowDesc]}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>Engine</Text>
+            <Text style={[styles.rowDesc, { color: colors.mutedForeground }]}>
               {sqliteCaps
                 ? `SQLite v${sqliteCaps.version} · expo-sqlite`
                 : 'Loading…'}
             </Text>
           </View>
-          <MaterialIcons name="chevron-right" size={20} color={D.sectionLabel} />
+          <MaterialIcons name="chevron-right" size={20} color={colors.mutedForeground} />
         </PressRow>
 
         {/* Capability chips */}
         {CAPS.length > 0 && (
           <>
             <Divider />
-            <View style={styles.capsWrap}>
+            <View style={[styles.capsWrap, { backgroundColor: colors.card }]}>
               {CAPS.map(cap => (
                 <View
                   key={cap.label}
@@ -497,8 +504,10 @@ export default function SettingsScreen() {
 
   // ── render ─────────────────────────────────────────────────────────────────
 
+  const colors = useColors();
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{
@@ -518,8 +527,8 @@ export default function SettingsScreen() {
               <Ionicons name="settings" size={18} color="#FFFFFF" />
             </LinearGradient>
             <View>
-              <Text style={styles.headerTitle}>Settings</Text>
-              <Text style={styles.headerSub}>Customize your SQL Studio experience</Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Settings</Text>
+              <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>Customize your SQL Studio experience</Text>
             </View>
           </View>
           <Pressable style={styles.headerBtn}>
@@ -760,7 +769,7 @@ export default function SettingsScreen() {
           </Card>
 
           {/* ── FOOTER ────────────────────────────────────────────── */}
-          <Text style={styles.footer}>
+          <Text style={[styles.footer, { color: colors.mutedForeground }]}>
             SQL Studio Pro · Powerful SQLite IDE for mobile{'\n'}
 
             Copyright © 2023 SQL Studio Pro. All rights reserved.{'\n'}

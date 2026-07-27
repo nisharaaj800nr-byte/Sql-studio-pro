@@ -33,6 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useColors } from '@/hooks/useColors';
 import { useDatabases } from '@/contexts/DatabaseContext';
 import { useEditor } from '@/contexts/EditorContext';
 import { TableCard } from '@/components/TableCard';
@@ -417,6 +418,7 @@ function DatabaseDetailInner() {
   const { id }    = useLocalSearchParams<{ id: string }>();
   const router    = useRouter();
   const insets    = useSafeAreaInsets();
+  const colors    = useColors();
   const { getDb, setActiveDbId, touchDatabase } = useDatabases();
   const { setCurrentSql } = useEditor();
 
@@ -540,19 +542,19 @@ function DatabaseDetailInner() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <View style={s.root}>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
       {/* Stack.Screen — sets system nav bar title */}
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* ── Premium sub-header ── */}
       <View style={s.subHeader}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={20} color={C.textPrimary} />
+        <Pressable onPress={() => router.back()} hitSlop={10} style={[s.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </Pressable>
-        <Text style={s.subHeaderTitle} numberOfLines={1}>
+        <Text style={[s.subHeaderTitle, { color: colors.foreground }]} numberOfLines={1}>
           {db?.name ?? 'Database'}
         </Text>
-        <Pressable onPress={handleOpenInEditor} hitSlop={10} style={s.codeBtn}>
+        <Pressable onPress={handleOpenInEditor} hitSlop={10} style={[s.codeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="code-slash-outline" size={20} color={C.accent} />
         </Pressable>
       </View>
@@ -561,7 +563,7 @@ function DatabaseDetailInner() {
       {db && (
         <View style={s.infoBar}>
           <View style={[s.dbDot, { backgroundColor: db.color ?? C.accent }]} />
-          <Text style={s.dbNameText} numberOfLines={1}>
+          <Text style={[s.dbNameText, { color: colors.mutedForeground }]} numberOfLines={1}>
             {db.name}
           </Text>
           <Pressable
@@ -612,12 +614,12 @@ function DatabaseDetailInner() {
                 style={s.tabBtn}
               >
                 <View style={s.tabBtnInner}>
-                  <Text style={[s.tabLabel, isActive && s.tabLabelActive]}>
+                  <Text style={[s.tabLabel, { color: isActive ? C.accent : colors.mutedForeground }, isActive && s.tabLabelActive]}>
                     {tab.label}
                   </Text>
                   {count > 0 && (
-                    <View style={[s.tabBadge, isActive && s.tabBadgeActive]}>
-                      <Text style={[s.tabBadgeText, isActive && s.tabBadgeTextActive]}>
+                    <View style={[s.tabBadge, { backgroundColor: colors.card }, isActive && s.tabBadgeActive]}>
+                      <Text style={[s.tabBadgeText, { color: colors.mutedForeground }, isActive && s.tabBadgeTextActive]}>
                         {count}
                       </Text>
                     </View>
@@ -628,7 +630,7 @@ function DatabaseDetailInner() {
             );
           })}
         </ScrollView>
-        <View style={s.tabDivider} />
+        <View style={[s.tabDivider, { backgroundColor: colors.border }]} />
       </View>
 
       {/* ── Content ── */}

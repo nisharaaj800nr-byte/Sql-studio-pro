@@ -400,11 +400,11 @@ export default function HistoryScreen() {
     : 'Executed queries will appear here.';
 
   return (
-    <View style={[s.root, { backgroundColor: '#090D14' }]}>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
 
       {/* ── Header ── */}
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={s.headerTitle}>History</Text>
+        <Text style={[s.headerTitle, { color: colors.foreground }]}>History</Text>
 
         <View style={s.headerActions}>
           {queryHistory.length > 0 && (
@@ -428,21 +428,21 @@ export default function HistoryScreen() {
 
       {/* ── Search bar ── */}
       <View style={s.searchWrap}>
-        <View style={s.searchBox}>
-          <Ionicons name="search-outline" size={16} color="#4A5568" style={s.searchIcon} />
+        <View style={[s.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={16} color={colors.mutedForeground} style={s.searchIcon} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search queries or database..."
-            placeholderTextColor="#3D4A5C"
-            style={s.searchInput}
+            placeholderTextColor={colors.mutedForeground}
+            style={[s.searchInput, { color: colors.foreground }]}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8} style={s.clearInput}>
-              <Ionicons name="close-circle" size={17} color="#3D4A5C" />
+              <Ionicons name="close-circle" size={17} color={colors.mutedForeground} />
             </Pressable>
           )}
         </View>
@@ -462,15 +462,15 @@ export default function HistoryScreen() {
                 }}
                 style={[
                   s.filterPill,
-                  active && s.filterPillActive,
+                  active ? s.filterPillActive : { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
                 {active && <View style={s.filterDot} />}
-                <Text style={[s.filterPillText, active && s.filterPillTextActive]}>
+                <Text style={[s.filterPillText, { color: colors.mutedForeground }, active && s.filterPillTextActive]}>
                   {f.label}
                 </Text>
                 {f.count > 0 && (
-                  <Text style={[s.filterPillCount, active && s.filterPillCountActive]}>
+                  <Text style={[s.filterPillCount, { color: colors.mutedForeground }, active && s.filterPillCountActive]}>
                     {f.count}
                   </Text>
                 )}
@@ -486,8 +486,8 @@ export default function HistoryScreen() {
           sections={sections}
           keyExtractor={q => q.id}
           renderSectionHeader={({ section: { title } }) => (
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>{title}</Text>
+            <View style={[s.sectionHeader, { backgroundColor: colors.background }]}>
+              <Text style={[s.sectionTitle, { color: colors.mutedForeground }]}>{title}</Text>
             </View>
           )}
           renderItem={({ item }) => (

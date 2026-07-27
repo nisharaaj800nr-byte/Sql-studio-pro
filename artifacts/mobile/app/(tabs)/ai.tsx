@@ -27,6 +27,7 @@ import * as Haptics from 'expo-haptics';
 import { useEditor } from '@/contexts/EditorContext';
 import { useDatabases } from '@/contexts/DatabaseContext';
 import { getColumns } from '@/utils/sqliteManager';
+import { useColors } from '@/hooks/useColors';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -301,9 +302,10 @@ function TemplateCard({
   onUse: (sql: string) => void;
 }) {
   const catColor = CAT_COLORS[template.category] ?? '#58A6FF';
+  const colors = useColors();
 
   return (
-    <View style={card.wrap}>
+    <View style={[card.wrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
       <View style={card.header}>
         <View style={[card.iconBox, { backgroundColor: catColor + '22' }]}>
@@ -313,7 +315,7 @@ function TemplateCard({
             color={catColor}
           />
         </View>
-        <Text style={card.title}>{template.title}</Text>
+        <Text style={[card.title, { color: colors.foreground }]}>{template.title}</Text>
         <View style={[card.badge, { backgroundColor: catColor + '20' }]}>
           <Text style={[card.badgeText, { color: catColor }]}>
             {template.category}
@@ -417,6 +419,7 @@ function CategoryChip({
   active: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
@@ -424,13 +427,13 @@ function CategoryChip({
         chip.base,
         active
           ? { backgroundColor: C.activeChip, borderColor: C.activeChip }
-          : { backgroundColor: C.chip, borderColor: C.chipBorder },
+          : { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
       <Text
         style={[
           chip.label,
-          { color: active ? '#FFFFFF' : C.tabInactive },
+          { color: active ? '#FFFFFF' : colors.mutedForeground },
         ]}
       >
         {label}
@@ -515,6 +518,7 @@ const TAB_BAR_H = Platform.OS === 'ios' ? 80 : 64;
 
 export default function AIAssistantScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { setCurrentSql } = useEditor();
   const { activeDbId } = useDatabases();
 
@@ -591,18 +595,18 @@ export default function AIAssistantScreen() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <View style={[s.root, { backgroundColor: C.bg }]}>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
 
       {/* ── App bar ── */}
       <View style={[s.appBar, { paddingTop: insets.top + 10 }]}>
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
-          style={s.backBtn}
+          style={[s.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Ionicons name="chevron-back" size={20} color={C.textPrimary} />
+          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </Pressable>
-        <Text style={s.appBarTitle}>SQL Assistant</Text>
+        <Text style={[s.appBarTitle, { color: colors.foreground }]}>SQL Assistant</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -615,9 +619,9 @@ export default function AIAssistantScreen() {
           <MaterialCommunityIcons
             name="chat-outline"
             size={16}
-            color={activeTab === 'chat' ? C.tabActive : C.tabInactive}
+            color={activeTab === 'chat' ? C.tabActive : colors.mutedForeground}
           />
-          <Text style={[s.tabBtnLabel, { color: activeTab === 'chat' ? C.tabActive : C.tabInactive }]}>
+          <Text style={[s.tabBtnLabel, { color: activeTab === 'chat' ? C.tabActive : colors.mutedForeground }]}>
             AI Chat
           </Text>
           {activeTab === 'chat' && <View style={s.tabIndicator} />}
@@ -630,37 +634,37 @@ export default function AIAssistantScreen() {
           <MaterialIcons
             name="grid-view"
             size={16}
-            color={activeTab === 'templates' ? C.tabActive : C.tabInactive}
+            color={activeTab === 'templates' ? C.tabActive : colors.mutedForeground}
           />
-          <Text style={[s.tabBtnLabel, { color: activeTab === 'templates' ? C.tabActive : C.tabInactive }]}>
+          <Text style={[s.tabBtnLabel, { color: activeTab === 'templates' ? C.tabActive : colors.mutedForeground }]}>
             Templates
           </Text>
           {activeTab === 'templates' && <View style={s.tabIndicator} />}
         </Pressable>
       </View>
 
-      <View style={s.tabDivider} />
+      <View style={[s.tabDivider, { backgroundColor: colors.border }]} />
 
       {/* ═════════════════════════ TEMPLATES TAB ════════════════════════════ */}
       {activeTab === 'templates' && (
         <View style={{ flex: 1 }}>
           {/* Search bar */}
           <View style={s.searchWrap}>
-            <View style={s.searchBox}>
-              <Ionicons name="search-outline" size={17} color={C.textMuted} style={{ marginRight: 2 }} />
+            <View style={[s.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="search-outline" size={17} color={colors.mutedForeground} style={{ marginRight: 2 }} />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search templates..."
-                placeholderTextColor={C.textPlaceholder}
-                style={s.searchInput}
+                placeholderTextColor={colors.mutedForeground}
+                style={[s.searchInput, { color: colors.foreground }]}
                 autoCorrect={false}
                 autoCapitalize="none"
                 returnKeyType="search"
               />
               {search.length > 0 && (
                 <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={17} color={C.textMuted} />
+                  <Ionicons name="close-circle" size={17} color={colors.mutedForeground} />
                 </Pressable>
               )}
             </View>
@@ -734,7 +738,9 @@ export default function AIAssistantScreen() {
                 key={msg.id}
                 style={[
                   s.bubble,
-                  msg.role === 'user' ? s.userBubble : s.aiBubble,
+                  msg.role === 'user'
+                    ? s.userBubble
+                    : [s.aiBubble, { backgroundColor: colors.card, borderColor: colors.border }],
                 ]}
               >
                 {msg.role === 'assistant' && (
@@ -755,7 +761,7 @@ export default function AIAssistantScreen() {
                           ? '#FFFFFF'
                           : msg.isError
                           ? '#F85149'
-                          : C.textPrimary,
+                          : colors.foreground,
                       },
                     ]}
                   >
@@ -800,15 +806,15 @@ export default function AIAssistantScreen() {
           <View
             style={[
               s.inputBar,
-              { paddingBottom: (insets.bottom || 12) + 8 },
+              { paddingBottom: (insets.bottom || 12) + 8, backgroundColor: colors.background, borderTopColor: colors.border },
             ]}
           >
             <TextInput
               value={prompt}
               onChangeText={setPrompt}
               placeholder="Describe the SQL you need..."
-              placeholderTextColor={C.textPlaceholder}
-              style={s.chatInput}
+              placeholderTextColor={colors.mutedForeground}
+              style={[s.chatInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               multiline
               maxLength={500}
               returnKeyType="send"
