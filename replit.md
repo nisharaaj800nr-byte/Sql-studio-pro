@@ -26,6 +26,15 @@ Both services run in parallel via the configured workflows:
 
 The mobile app is an Expo project — scan the QR code in the workflow logs with **Expo Go** on your phone, or open the web preview at the Mobile workflow's port.
 
+## Database storage and permissions
+
+- SQLite database files are stored locally in the app-private `documentDirectory/SQLite/` folder as `sqlstudio_<database-id>.db`.
+- The database list, names, descriptions, and timestamps are stored separately in AsyncStorage.
+- On web, SQLite uses browser storage (IndexedDB) rather than a device file.
+- Database operations do not require camera, location, contacts, or broad storage permissions.
+- SQL/CSV/database imports use the platform Document Picker, which grants access to the selected file only.
+- iOS Files app exposure is enabled with `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`; Android uses the system picker without a broad storage permission.
+
 ## Project status
 
 See `PROJECT_STATUS.md` for the detailed feature tracker. As of import:

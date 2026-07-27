@@ -108,6 +108,7 @@ export const SQLITE_FUNCTIONS: readonly string[] = [
 ];
 
 const dbCache: Record<string, SQLite.SQLiteDatabase> = {};
+const BULK_SCRIPT_STATEMENT_THRESHOLD = 100;
 
 /**
  * Per-database transaction state.
@@ -216,6 +217,29 @@ function resultTypeForKind(
 }
 
 /**
+ * A long import/script should cross the native bridge once instead of making
+ * thousands of sequential runAsync calls. Keep row-returning and transaction
+ * scripts on the statement-by-statement path because their result/state needs
+ * to be tracked by this module.
+ */
+function canUseBulkScriptExecution(
+  statements: string[],
+  kinds: SQLStatementKind[],
+): boolean {
+  if (statements.length < BULK_SCRIPT_STATEMENT_THRESHOLD) return false;
+  return statements.every((statement, index) => {
+    const kind = kinds[index];
+    return (
+      !statementReturnsRows(statement, kind) &&
+      (kind === 'dml' ||
+        kind === 'ddl' ||
+        kind === 'pragma' ||
+        kind === 'maintenance')
+    );
+  });
+}
+
+/**
  * Execute one or more SQL statements against a local database.
  *
  * - Statements are split with a SQL-aware tokenizer (not a simple semicolon split).
@@ -244,17 +268,34 @@ export async function executeQuery(
       };
     }
 
+    const statementKinds = statements.map(classifySQL);
+    if (canUseBulkScriptExecution(statements, statementKinds)) {
+      // expo-sqlite's execAsync sends the complete script through one native
+      // call. This is the important path for 2,000+ line INSERT/DDL scripts.
+      await db.execAsync(`${statements.join(';\n')};`);
+      if (statementKinds.includes('ddl')) invalidateCompletionCache(dbId);
+
+      return {
+        columns: [],
+        rows: [],
+        rowsAffected: 0,
+        executionTime: Date.now() - start,
+        type: resultTypeForKind(statementKinds[statementKinds.length - 1]),
+        statementCount: statements.length,
+        statementKinds,
+        inTransaction: isInTransaction(dbId) || undefined,
+      };
+    }
+
     let finalColumns: string[] = [];
     let finalRows: Record<string, unknown>[] = [];
     let finalType: QueryResult['type'] = 'ddl';
     let finalInsertId: number | undefined;
     let truncated = false;
     let rowsAffected = 0;
-    const statementKinds: SQLStatementKind[] = [];
 
     for (const statement of statements) {
       const kind = classifySQL(statement);
-      statementKinds.push(kind);
       if (kind === 'ddl') invalidateCompletionCache(dbId);
 
       const returnsRows = statementReturnsRows(statement, kind);

@@ -368,14 +368,20 @@ export function SQLEditor({
 
           {/* Line numbers */}
           <View style={[s.lineNums, { borderRightColor: '#21262D' }]}>
-            {Array.from({ length: lineCount }, (_, i) => (
-              <Text
-                key={i}
-                style={[s.lineNum, { color: '#3D444D', fontSize: fontSize - 1, lineHeight }]}
-              >
-                {i + 1}
+            {isLargeDocument ? (
+              <Text style={[s.lineNum, { color: '#3D444D', fontSize: fontSize - 1, lineHeight }]}>
+                {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
               </Text>
-            ))}
+            ) : (
+              Array.from({ length: lineCount }, (_, i) => (
+                <Text
+                  key={i}
+                  style={[s.lineNum, { color: '#3D444D', fontSize: fontSize - 1, lineHeight }]}
+                >
+                  {i + 1}
+                </Text>
+              ))
+            )}
           </View>
 
           {/* Code area: highlighted overlay + transparent input */}

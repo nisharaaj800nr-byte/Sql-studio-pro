@@ -32,6 +32,10 @@ const UNSUPPORTED_PRAGMA_RE = /^\s*PRAGMA\s+compile_options\s*$/i;
 
 function makeDriverFor(db) {
   return {
+    execAsync: async (sql) => {
+      db.run(sql);
+    },
+
     getAllAsync: async (sql, params) => {
       // Guard: sql.js cannot execute PRAGMA compile_options — return [] gracefully.
       if (UNSUPPORTED_PRAGMA_RE.test(sql)) return [];

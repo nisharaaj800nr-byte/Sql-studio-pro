@@ -8,6 +8,7 @@ module.exports = {
     '^expo-sqlite$': '<rootDir>/__mocks__/expo-sqlite.js',
     '^expo-file-system$': '<rootDir>/__mocks__/expo-file-system.js',
     '^expo-haptics$': '<rootDir>/__mocks__/expo-haptics.js',
+    '^react-native$': '<rootDir>/__mocks__/react-native.js',
   },
   transform: {
     '^.+\\.tsx?$': [

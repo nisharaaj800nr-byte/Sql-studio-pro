@@ -64,6 +64,22 @@ describe('Basic CRUD', () => {
     expect(r.rows[0]).toMatchObject({ id: 1, name: 'Alice' });
   });
 
+  it('executes a 2,000-statement script through the bulk path', async () => {
+    const db = freshDb();
+    await executeQuery(db, 'CREATE TABLE bulk_t (id INTEGER PRIMARY KEY, value TEXT)');
+    const script = Array.from(
+      { length: 2000 },
+      (_, i) => `INSERT INTO bulk_t (id, value) VALUES (${i + 1}, 'row-${i + 1}')`,
+    ).join(';\n');
+
+    const result = await executeQuery(db, script);
+    expect(result.error).toBeUndefined();
+    expect(result.statementCount).toBe(2000);
+
+    const count = await executeQuery(db, 'SELECT COUNT(*) AS count FROM bulk_t');
+    expect(count.rows[0]).toMatchObject({ count: 2000 });
+  });
+
   it('UPDATE', async () => {
     const db = freshDb();
     await setup(db, 'CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)', [

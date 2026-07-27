@@ -695,6 +695,13 @@ export default function SettingsScreen() {
             />
             <Divider />
             <SettingRow
+              icon="folder"
+              iconColor={D.primary}
+              label="Database Location"
+              desc={Platform.OS === 'web' ? 'Browser IndexedDB' : 'Private app storage · SQLite'}
+            />
+            <Divider />
+            <SettingRow
               icon="history"
               iconColor={D.primary}
               label="Query History"
