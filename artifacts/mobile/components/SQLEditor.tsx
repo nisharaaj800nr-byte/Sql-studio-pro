@@ -386,24 +386,35 @@ export function SQLEditor({
 
           {/* Code area: highlighted overlay + transparent input */}
           <View style={{ flex: 1 }}>
-            {/* Syntax highlighted text (behind) */}
-            <HighlightedSQL
-              value={value}
-              style={[codeStyle, s.codeOverlay]}
-            />
-            {/* Transparent TextInput (on top — captures input, shows cursor) */}
+            {/* Syntax highlighted text — shown on iOS (overlay trick), or Android fallback */}
+            {Platform.OS !== 'android' && (
+              <HighlightedSQL
+                value={value}
+                style={[codeStyle, s.codeOverlay]}
+              />
+            )}
+            {/* TextInput:
+                - iOS: transparent (sees overlay beneath)
+                - Android: visible text color (overlay trick is unreliable on Android) */}
             <TextInput
               ref={inputRef}
               value={value}
               onChangeText={onChange}
               onSelectionChange={handleSelectionChange}
-              style={[codeStyle, s.codeInput, { minHeight: lineCount * lineHeight + 34 }]}
+              style={[
+                codeStyle,
+                s.codeInput,
+                {
+                  minHeight: lineCount * lineHeight + 34,
+                  color: Platform.OS === 'android' ? '#E6EDF3' : 'transparent',
+                },
+              ]}
               multiline
               scrollEnabled={false}
               autoCorrect={false}
               autoCapitalize="none"
               spellCheck={false}
-              keyboardType="ascii-capable"
+              keyboardType={Platform.OS === 'android' ? 'default' : 'ascii-capable'}
               selectionColor="#58A6FF"
               placeholderTextColor="#3D444D"
               placeholder="-- Write your SQLite query here…"
