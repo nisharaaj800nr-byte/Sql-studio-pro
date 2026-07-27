@@ -1,1 +1,2 @@
 - [Imported workflow ports](imported-workflow-ports.md) — imported artifact metadata may not register workflows; explicit PORT values are required for local workflow commands.
+- [Long SQL execution](long-sql-execution.md) — native SQLite work can outlive the UI timeout; prevent overlapping runs and keep long editor documents lightweight.

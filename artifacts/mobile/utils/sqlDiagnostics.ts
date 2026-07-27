@@ -186,8 +186,8 @@ export function splitSQLStatements(sql: string): string[] {
   let blockComment = false;
   let lineComment = false;
   let depth = 0;
-  let currentWords: string[] = [];
   let triggerBodyDepth = 0;
+  let sawCreate = false;
   let isCreateTrigger = false;
 
   while (i < sql.length) {
@@ -223,10 +223,8 @@ export function splitSQLStatements(sql: string): string[] {
       let end = i + 1;
       while (isWordPart(sql[end])) end++;
       const word = sql.slice(i, end).toUpperCase();
-      currentWords.push(word);
-      if (currentWords[0] === 'CREATE' && currentWords.includes('TRIGGER')) {
-        isCreateTrigger = true;
-      }
+      if (word === 'CREATE' && triggerBodyDepth === 0) sawCreate = true;
+      if (sawCreate && word === 'TRIGGER') isCreateTrigger = true;
       if (isCreateTrigger && word === 'BEGIN') triggerBodyDepth++;
       if (isCreateTrigger && word === 'END' && triggerBodyDepth > 0) triggerBodyDepth--;
       i = end;
@@ -238,7 +236,7 @@ export function splitSQLStatements(sql: string): string[] {
       const statement = sql.slice(start, i).trim();
       if (statement) statements.push(statement);
       start = i + 1;
-      currentWords = [];
+      sawCreate = false;
       isCreateTrigger = false;
     }
     i++;

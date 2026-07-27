@@ -29,6 +29,8 @@ import { getSQLCompletionItems, isInTransaction } from '@/utils/sqliteManager';
 import * as Haptics from 'expo-haptics';
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const LARGE_SQL_LINE_THRESHOLD = 250;
+const LARGE_SQL_CHAR_THRESHOLD = 24_000;
 
 // Visible SQL chips row — matches reference (8 core keywords)
 const SQL_CHIPS = [
@@ -92,6 +94,15 @@ function HighlightedSQL({
   style: object;
 }) {
   const colors = useColors();
+  // Rendering thousands of nested <Text> nodes can exhaust the native view
+  // tree on mobile. Large scripts still remain editable, but use plain text.
+  if (value.length > LARGE_SQL_CHAR_THRESHOLD || value.split('\n').length > LARGE_SQL_LINE_THRESHOLD) {
+    return (
+      <Text style={[style, { color: colors.editorText }]} selectable={false}>
+        {value}
+      </Text>
+    );
+  }
   const tokens = tokenize(value);
   return (
     <Text style={style} selectable={false}>
@@ -150,6 +161,8 @@ export function SQLEditor({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lineCount = value.split('\n').length;
+  const isLargeDocument =
+    lineCount > LARGE_SQL_LINE_THRESHOLD || value.length > LARGE_SQL_CHAR_THRESHOLD;
   const fontSize = settings.fontSize ?? 13;
   const lineHeight = Math.round(fontSize * 1.65);
 
@@ -163,9 +176,11 @@ export function SQLEditor({
   }, [value]);
 
   // Diagnostics
-  const diagnostics = getStaticSQLDiagnosticsWithOptions(value, {
-    inTransaction: databaseId ? isInTransaction(databaseId) : false,
-  });
+  const diagnostics = isLargeDocument
+    ? []
+    : getStaticSQLDiagnosticsWithOptions(value, {
+        inTransaction: databaseId ? isInTransaction(databaseId) : false,
+      });
   const hasHardError = diagnostics.some(d => d.severity === 'error');
 
   // Auto-complete
@@ -174,7 +189,10 @@ export function SQLEditor({
 
   const fetchCompletions = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!settings.autoComplete || !databaseId) { setSchemaSuggestions([]); return; }
+    if (isLargeDocument || !settings.autoComplete || !databaseId) {
+      setSchemaSuggestions([]);
+      return;
+    }
     debounceRef.current = setTimeout(async () => {
       try {
         const items = await getSQLCompletionItems(databaseId, value);
@@ -185,7 +203,7 @@ export function SQLEditor({
         ]);
       } catch { setSchemaSuggestions([]); }
     }, 300);
-  }, [databaseId, settings.autoComplete, value]);
+  }, [databaseId, isLargeDocument, settings.autoComplete, value]);
 
   useEffect(() => {
     fetchCompletions();
@@ -427,7 +445,9 @@ export function SQLEditor({
           : 'information-circle';
         const infoMsg = firstDiag
           ? `${firstDiag.line > 0 ? `Ln ${firstDiag.line} · ` : ''}${firstDiag.message}`
-          : getHint();
+            : isLargeDocument
+              ? 'Large script — lightweight mode enabled; validation and autocomplete are paused'
+              : getHint();
 
         return (
           <View style={[s.infoBar, { backgroundColor: '#0D1117', borderTopColor: '#21262D' }]}>

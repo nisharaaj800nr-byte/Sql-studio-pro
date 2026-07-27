@@ -58,6 +58,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [queryHistory, setQueryHistory] = useState<QueryHistoryEntry[]>([]);
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [totalQueriesRun, setTotalQueriesRun] = useState(0);
+  // A timeout only stops waiting for the result; expo-sqlite cannot cancel an
+  // already-running native statement. Keep a lock until that promise settles
+  // so a second run cannot overlap the first one and destabilize the database.
+  const activeExecutionRef = useRef<Promise<QueryResult> | null>(null);
 
   const historyRef = useRef(queryHistory);
   historyRef.current = queryHistory;
@@ -80,6 +84,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   const executeQuery = useCallback(async (dbId: string, dbName: string, sql: string) => {
     const trimmedSql = sql.trim();
     if (!trimmedSql) return;
+    if (activeExecutionRef.current) return;
 
     setIsExecuting(true);
     setLastError(null);
@@ -97,58 +102,74 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     });
 
     let result: QueryResult;
+    const executionPromise = execSql(dbId, trimmedSql, settings.rowLimit);
+    activeExecutionRef.current = executionPromise;
+    // Prevent a late native rejection, after a UI timeout, from becoming an
+    // unhandled promise rejection.
+    void executionPromise.catch(() => undefined);
     try {
-      // Task 1.6: pass maxRows so the DB caps the fetch at the source,
-      // not after loading potentially millions of rows into JS memory.
-      result = await Promise.race([execSql(dbId, trimmedSql, settings.rowLimit), timeoutPromise]);
-    } catch (e) {
-      if (e instanceof DatabaseCorruptError) throw e; // let DatabaseErrorBoundary handle it
-      const details = formatSQLiteError(e);
-      result = {
-        columns: [],
-        rows: [],
-        rowsAffected: 0,
-        executionTime: timeoutMs,
-        error: details.message,
-        errorTitle: details.title,
-        errorHint: details.hint,
-        type: 'error',
-      };
+      try {
+        // Task 1.6: pass maxRows so the DB caps the fetch at the source,
+        // not after loading potentially millions of rows into JS memory.
+        result = await Promise.race([executionPromise, timeoutPromise]);
+      } catch (e) {
+        if (e instanceof DatabaseCorruptError) throw e; // let DatabaseErrorBoundary handle it
+        const details = timedOut
+          ? {
+              title: 'Query timed out',
+              message: `The query exceeded the ${timeoutMs / 1000}s timeout. It will finish safely in the background before another query can run.`,
+              hint: 'Try a smaller batch, add a WHERE/LIMIT clause, or increase Query Timeout in Settings.',
+            }
+          : formatSQLiteError(e);
+        result = {
+          columns: [],
+          rows: [],
+          rowsAffected: 0,
+          executionTime: timeoutMs,
+          error: details.message,
+          errorTitle: details.title,
+          errorHint: details.hint,
+          type: 'error',
+        };
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      }
+
+      setQueryResult(result);
+
+      if (result.error) {
+        setLastError(result.error);
+      }
+
+      if (!timedOut) {
+        const entry: QueryHistoryEntry = {
+          id: `h_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          sql: trimmedSql,
+          databaseId: dbId,
+          databaseName: dbName,
+          timestamp: new Date().toISOString(),
+          success: !result.error,
+          rowCount: result.rows.length || result.rowsAffected,
+          executionTime: result.executionTime,
+          error: result.error,
+        };
+
+        const updated = [entry, ...historyRef.current].slice(0, 500);
+        setQueryHistory(updated);
+        const newTotal = totalQueriesRun + 1;
+        setTotalQueriesRun(newTotal);
+
+        await Promise.all([
+          AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated)),
+          AsyncStorage.setItem(STATS_KEY, JSON.stringify({ totalQueriesRun: newTotal })),
+        ]);
+      }
     } finally {
-      if (timeoutHandle) clearTimeout(timeoutHandle);
+      setIsExecuting(false);
+      if (activeExecutionRef.current === executionPromise) {
+        activeExecutionRef.current = null;
+      }
     }
-
-    setQueryResult(result);
-
-    if (result.error) {
-      setLastError(result.error);
-    }
-
-    if (!timedOut) {
-      const entry: QueryHistoryEntry = {
-        id: `h_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        sql: trimmedSql,
-        databaseId: dbId,
-        databaseName: dbName,
-        timestamp: new Date().toISOString(),
-        success: !result.error,
-        rowCount: result.rows.length || result.rowsAffected,
-        executionTime: result.executionTime,
-        error: result.error,
-      };
-
-      const updated = [entry, ...historyRef.current].slice(0, 500);
-      setQueryHistory(updated);
-      const newTotal = totalQueriesRun + 1;
-      setTotalQueriesRun(newTotal);
-
-      await Promise.all([
-        AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated)),
-        AsyncStorage.setItem(STATS_KEY, JSON.stringify({ totalQueriesRun: newTotal })),
-      ]);
-    }
-
-    setIsExecuting(false);
   }, [totalQueriesRun, settings.queryTimeoutMs, settings.rowLimit]);
 
   const clearHistory = async () => {

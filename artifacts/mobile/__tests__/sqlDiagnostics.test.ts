@@ -159,6 +159,16 @@ describe('splitSQLStatements', () => {
 
   it('handles bracket identifiers [col;name]', () =>
     expect(splitSQLStatements('SELECT [col;name] FROM t')).toHaveLength(1));
+
+  it('handles a long multi-statement script without quadratic trigger scanning', () => {
+    const sql = Array.from(
+      { length: 400 },
+      (_, i) => `INSERT INTO events (id, label) VALUES (${i}, 'event ${i}');`,
+    ).join('\n');
+    const statements = splitSQLStatements(sql);
+    expect(statements).toHaveLength(400);
+    expect(statements[399]).toContain('VALUES (399');
+  });
 });
 
 // ─── getStaticSQLDiagnostics ──────────────────────────────────────────────────
